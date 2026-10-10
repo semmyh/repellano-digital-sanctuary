@@ -39,6 +39,9 @@
             padding: 32px 24px;
             text-align: center;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
         }
 
         /* Shield Emblem Glowing Graphics */
@@ -49,7 +52,7 @@
             background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(0,0,0,0) 70%);
             width: 100px;
             height: 100px;
-            margin-bottom: 24px;
+            margin: 0 auto 24px auto;
         }
 
         .shield-icon {
@@ -75,33 +78,51 @@
         /* Screen Option Control Switches */
         .screen {
             display: none;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .screen.active {
-            display: block;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
         }
 
-        /* Welcome Mode Button Layout Design (Matches Screenshot Exactly) */
+        /* FIXED: Nested Functional Button Group Frame Container */
+        .button-frame-group {
+            width: 100%;
+            box-sizing: border-box;
+            background: rgba(0, 0, 0, 0.15);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* Welcome Mode Button Layout Design (Perfectly Aligned Internally) */
         .menu-btn {
             background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
             width: 100%;
-            padding: 18px;
-            margin-bottom: 16px;
+            padding: 16px;
             cursor: pointer;
             text-align: center;
             transition: all 0.2s ease;
+            box-sizing: border-box;
         }
 
         .menu-btn:hover {
             border-color: var(--accent-blue);
-            background: rgba(59, 130, 246, 0.05);
+            background: rgba(59, 130, 246, 0.08);
         }
 
         .btn-title {
             color: var(--text-primary);
-            font-size: 1.1rem;
+            font-size: 1.05rem;
             font-weight: 600;
             margin-bottom: 4px;
         }
@@ -136,6 +157,8 @@
             align-items: center;
             justify-content: center;
             margin-bottom: 24px;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .lyrics-content {
@@ -168,6 +191,7 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 24px;
+            width: 100%;
         }
 
         .arrow-nav {
@@ -213,6 +237,7 @@
             background-color: #1f2937;
             color: #4b5563;
             transition: all 0.3s ease;
+            box-sizing: border-box;
         }
 
         .gatekeeper-button.ready {
@@ -231,19 +256,22 @@
             <div class="shield-icon">🛡️</div>
         </div>
 
-        <!-- SCREEN 1: WELCOME SELECTION (Matches Screenshot Image Setup Explicitly) -->
+        <!-- SCREEN 1: WELCOME SELECTION (With Aligned Inner Button Frame) -->
         <div id="welcome-screen" class="screen active">
             <h1>Welcome To The Sanctuary</h1>
             <div class="description">Before you enter, choose your language to listen to the Sanctuary's anthem.</div>
             
-            <div class="menu-btn" onclick="initializeAOF('en')">
-                <div class="btn-title">English Version</div>
-                <div class="btn-subtitle">Listen in English</div>
-            </div>
-            
-            <div class="menu-btn" onclick="initializeAOF('pidgin')">
-                <div class="btn-title">Pidgin Version</div>
-                <div class="btn-subtitle">Listen in Pidgin</div>
+            <!-- FIXED: Buttons are now safely held perfectly flush in this internal frame container -->
+            <div class="button-frame-group">
+                <div class="menu-btn" onclick="initializeAOF('en')">
+                    <div class="btn-title">English Version</div>
+                    <div class="btn-subtitle">Listen in English</div>
+                </div>
+                
+                <div class="menu-btn" onclick="initializeAOF('pidgin')">
+                    <div class="btn-title">Pidgin Version</div>
+                    <div class="btn-subtitle">Listen in Pidgin</div>
+                </div>
             </div>
         </div>
 
@@ -282,6 +310,3 @@
         const anthemDatabase = {
             "en": [
                 { badge: "Intro", text: "(Atmospheric tech synths open, steady afrobeat kicks in)\nWelcome to the Sanctuary.\nWhere the chaotic markets find their perfect peace.\nThis is SemLeno's Repellano Digital Sanctuary." },
-                { badge: "Verse 1", text: "The global markets spin in a wild, endless race\nComplex forex trading moving at a blinding pace\nBut inside the Sanctuary, the vision is crystal clear\nWe strip away the chaos, we break down the fear\nTurning heavy burdens into a simple tool for all." },
-                { badge: "Chorus", text: "Simple. Automated. Universal.\nThirty-five FSSOs, the tech reversal!\nUniversal empowerment, no matter where you start\nRepellano lifting up every single heart!\nEvery single heart!\nEvery single heart!\nEvery single heart!" },
-                { badge: "Verse 2", text: "An ecosystem built to redefine the grand design\nWhere mathematics meets the market, aligning line by line\nA seamless architecture, steady, smooth, and deep\nWorking in the silence while the world is fast asleep." },
