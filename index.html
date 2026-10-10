@@ -126,14 +126,14 @@
         <h1>Welcome To The Sanctuary</h1>
         <div class="description">Before you enter, choose your language to listen to the Sanctuary's anthem.</div>
         
-        <!-- Both buttons route directly to @RDSTracks with no background scripts to crash -->
+        <!-- Native execution handshakes to completely bypass the browser redirect bug -->
         <div class="button-frame-group">
-            <div class="menu-btn" onclick="routeToChannel()">
+            <div class="menu-btn" onclick="routeToChannel(6)">
                 <div class="btn-title">English Version</div>
                 <div class="btn-subtitle">Listen in English</div>
             </div>
             
-            <div class="menu-btn" onclick="routeToChannel()">
+            <div class="menu-btn" onclick="routeToChannel(7)">
                 <div class="btn-title">Pidgin Version</div>
                 <div class="btn-subtitle">Listen in Pidgin</div>
             </div>
@@ -141,15 +141,17 @@
     </div>
 
     <script>
-        // Direct routing trigger
-        function routeToChannel() {
+        function routeToChannel(postNum) {
+            // FIXED: Using pure native app protocol mapping to drop straight into the chat view layout
+            const nativeDeepLink = `tg://resolve?domain=RDSTracks&post=${postNum}`;
+            const fallbackLink = `https://t.me{postNum}`;
+            
             const tg = window.Telegram?.WebApp;
-            const targetUrl = "https://t.me";
             
             if (tg && typeof tg.openTelegramLink === "function") {
-                tg.openTelegramLink(targetUrl);
+                tg.openTelegramLink(fallbackLink);
             } else {
-                window.open(targetUrl, "_blank");
+                window.location.href = nativeDeepLink;
             }
         }
     </script>
