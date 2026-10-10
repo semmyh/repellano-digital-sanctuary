@@ -52,7 +52,7 @@
             background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(0,0,0,0) 70%);
             width: 100px;
             height: 100px;
-            margin: 0 auto 24px auto;
+            margin: 0 auto 20px auto;
         }
 
         .shield-icon {
@@ -71,25 +71,11 @@
             color: var(--text-secondary);
             font-size: 0.95rem;
             line-height: 1.5;
-            margin: 0 0 32px 0;
+            margin: 0 0 24px 0;
             padding: 0 10px;
         }
 
-        /* Screen Option Control Switches */
-        .screen {
-            display: none;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .screen.active {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-        }
-
-        /* FIXED: Nested Functional Button Group Frame Container */
+        /* Flush Internal Button Frame Container */
         .button-frame-group {
             width: 100%;
             box-sizing: border-box;
@@ -100,9 +86,10 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
+            margin-bottom: 24px;
         }
 
-        /* Welcome Mode Button Layout Design (Perfectly Aligned Internally) */
+        /* Sleek UI Version Audio Activation Buttons */
         .menu-btn {
             background: rgba(255, 255, 255, 0.02);
             border: 1px solid rgba(255, 255, 255, 0.05);
@@ -115,9 +102,13 @@
             box-sizing: border-box;
         }
 
-        .menu-btn:hover {
+        .menu-btn:hover, .menu-btn.active {
             border-color: var(--accent-blue);
             background: rgba(59, 130, 246, 0.08);
+        }
+
+        .menu-btn.active {
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
         }
 
         .btn-title {
@@ -132,7 +123,18 @@
             font-size: 0.8rem;
         }
 
-        /* Framework Dashboard Layout Components */
+        /* Framework Progressive Disclosure Container Layout */
+        .framework-display-area {
+            display: none; /* Hidden until a core language version is launched */
+            flex-direction: column;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .framework-display-area.active {
+            display: flex;
+        }
+
         .section-badge {
             background: rgba(59, 130, 246, 0.1);
             border: 1px solid rgba(59, 130, 246, 0.3);
@@ -144,7 +146,7 @@
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            margin-bottom: 16px;
+            margin: 0 auto 16px auto;
         }
 
         .lyrics-viewport {
@@ -167,22 +169,6 @@
             color: var(--text-primary);
             white-space: pre-line;
             text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-        }
-
-        .action-link {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background-color: var(--accent-blue);
-            color: #ffffff;
-            font-weight: 700;
-            text-decoration: none;
-            width: 100%;
-            padding: 16px;
-            border-radius: 14px;
-            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
-            margin-bottom: 24px;
-            box-sizing: border-box;
         }
 
         /* Pagination Matrix */
@@ -256,48 +242,40 @@
             <div class="shield-icon">🛡️</div>
         </div>
 
-        <!-- SCREEN 1: WELCOME SELECTION (With Aligned Inner Button Frame) -->
-        <div id="welcome-screen" class="screen active">
-            <h1>Welcome To The Sanctuary</h1>
-            <div class="description">Before you enter, choose your language to listen to the Sanctuary's anthem.</div>
+        <h1>Welcome To The Sanctuary</h1>
+        <div class="description">Before you enter, choose your language to listen to the Sanctuary's anthem.</div>
+        
+        <!-- Persistent Interactive UI Buttons (Fires Channel Audios Directly) -->
+        <div class="button-frame-group">
+            <div class="menu-btn" id="lang-en-btn" onclick="activateAnthemFramework('en')">
+                <div class="btn-title">English Version</div>
+                <div class="btn-subtitle">Listen in English</div>
+            </div>
             
-            <!-- FIXED: Buttons are now safely held perfectly flush in this internal frame container -->
-            <div class="button-frame-group">
-                <div class="menu-btn" onclick="initializeAOF('en')">
-                    <div class="btn-title">English Version</div>
-                    <div class="btn-subtitle">Listen in English</div>
-                </div>
-                
-                <div class="menu-btn" onclick="initializeAOF('pidgin')">
-                    <div class="btn-title">Pidgin Version</div>
-                    <div class="btn-subtitle">Listen in Pidgin</div>
-                </div>
+            <div class="menu-btn" id="lang-pidgin-btn" onclick="activateAnthemFramework('pidgin')">
+                <div class="btn-title">Pidgin Version</div>
+                <div class="btn-subtitle">Listen in Pidgin</div>
             </div>
         </div>
 
-        <!-- SCREEN 2: ANTHEM ONBOARDING FRAMEWORK RUNNER -->
-        <div id="framework-screen" class="screen">
+        <!-- PROGRESSIVE DISCLOSURE COMPONENT LAYER -->
+        <div id="aof-disclosure-engine" class="framework-display-area">
             <div class="section-badge" id="hud-section-label">INTRO</div>
             
             <div class="lyrics-viewport">
-                <div class="lyrics-content" id="hud-lyrics-body">Lyrics data streaming...</div>
+                <div class="lyrics-content" id="hud-lyrics-body">Select a version above to disclose structural content rules...</div>
             </div>
 
-            <!-- Pagination Structural Arrows -->
+            <!-- Pagination Structural Flow Controllers -->
             <div class="pagination-row">
                 <button class="arrow-nav" id="left-arrow" onclick="changeSection(-1)">←</button>
                 <div class="dots-group" id="dots-matrix"></div>
                 <button class="arrow-nav" id="right-arrow" onclick="changeSection(1)">→</button>
             </div>
 
-            <!-- Sleek Launch Button Redirect to Telegram Media Post Link -->
-            <a href="https://t.me" target="_blank" class="action-link" id="media-hub-link">
-                🎧 Open @RDSTracks Channel
-            </a>
-
             <!-- Hardlocked Gateway Proceed Trigger -->
             <button class="gatekeeper-button" id="constitutional-gate-btn" onclick="sealContract()" disabled>
-                🔒 Read All Sections To Unlock Entrance
+                🔒 Absorb All Anthem Sections To Proceed
             </button>
         </div>
     </div>
@@ -306,7 +284,9 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        // Comprehensive Exact Structural Section Data Model Mapping
+        // Exact Structural Lyrical Matrix Data Rules Model Mapping
         const anthemDatabase = {
             "en": [
                 { badge: "Intro", text: "(Atmospheric tech synths open, steady afrobeat kicks in)\nWelcome to the Sanctuary.\nWhere the chaotic markets find their perfect peace.\nThis is SemLeno's Repellano Digital Sanctuary." },
+                { badge: "Verse 1", text: "The global markets spin in a wild, endless race\nComplex forex trading moving at a blinding pace\nBut inside the Sanctuary, the vision is crystal clear\nWe strip away the chaos, we break down the fear\nTurning heavy burdens into a simple tool for all." },
+                { badge: "Chorus", text: "Simple. Automated. Universal.\nThirty-five FSSOs, the tech reversal!\nUniversal empowerment, no matter where you start\nRepellano lifting up every single heart!\nEvery single heart!\nEvery single heart!\nEvery single heart!" },
