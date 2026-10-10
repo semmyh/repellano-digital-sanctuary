@@ -1,10 +1,9 @@
 import asyncio
 import os
-from aiogram import Bot, Dispatcher, F
+from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart
 from aiogram.types import (
     Message, 
-    CallbackQuery,
     InlineKeyboardMarkup, 
     InlineKeyboardButton, 
     MenuButtonWebApp, 
@@ -20,17 +19,17 @@ dp = Dispatcher()
 # Your WebApp gateway URL hosted via Vercel
 BASE_URL = "https://vercel.app"
 
-# NATIVE INLINE KEYBOARD: Links directly to your channel posts natively
+# NATIVE KEYBOARD MATRIX: Uses native app routing commands to completely bypass browser bugs
 def language_selection_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(
-                text="🎧 English Version (Play on @RDSTracks)", 
-                url="https://t.me"
+                text="🎧 English Version (Open @RDSTracks)", 
+                switch_inline_query_current_chat="English"
             )],
             [InlineKeyboardButton(
-                text="🎧 Pidgin Version (Play on @RDSTracks)", 
-                url="https://t.me"
+                text="🎧 Pidgin Version (Open @RDSTracks)", 
+                switch_inline_query_current_chat="Pidgin"
             )]
         ]
     )
