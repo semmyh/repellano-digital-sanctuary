@@ -22,11 +22,11 @@ async def cmd_start(message: Message) -> None:
     # Dynamically extract the user's real first name from their Telegram profile
     user_name = message.from_user.first_name
 
-    # Set up the persistent Menu Button to sit at the bottom next to the text input box
+    # Set up the persistent Menu Button with your exact updated text preference
     await bot.set_chat_menu_button(
         chat_id=message.chat.id,
         menu_button=MenuButtonWebApp(
-            text="🛡️ Click to Enter the Sanctuary",
+            text="🛡️ Sanctuary Gate",
             web_app=WebAppInfo(url=BASE_URL)
         )
     )
