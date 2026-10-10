@@ -84,7 +84,6 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
-            margin-bottom: 24px;
         }
 
         .menu-btn {
@@ -99,14 +98,9 @@
             box-sizing: border-box;
         }
 
-        .menu-btn:hover, .menu-btn.active {
+        .menu-btn:hover {
             border-color: var(--accent-blue);
             background: rgba(59, 130, 246, 0.08);
-        }
-
-        .menu-btn.active {
-            border-color: var(--accent-blue);
-            box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
         }
 
         .btn-title {
@@ -120,149 +114,6 @@
             color: var(--text-secondary);
             font-size: 0.8rem;
         }
-
-        .framework-display-area {
-            display: none; 
-            flex-direction: column;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .framework-display-area.active {
-            display: flex;
-        }
-
-        .sleek-audio-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #ffffff !important;
-            text-decoration: none !important;
-            width: 100%;
-            padding: 18px;
-            border-radius: 14px;
-            font-weight: 700;
-            font-size: 1.05rem;
-            margin-bottom: 24px;
-            box-sizing: border-box;
-            box-shadow: 0 8px 16px -4px rgba(59, 130, 246, 0.4);
-            cursor: pointer;
-            transition: transform 0.1s, box-shadow 0.2s;
-        }
-
-        .sleek-audio-button:active {
-            transform: scale(0.98);
-            box-shadow: 0 4px 8px -2px rgba(59, 130, 246, 0.4);
-        }
-
-        .sleek-audio-button .icon-pulse {
-            font-size: 1.3rem;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.2); opacity: 0.8; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-
-        .section-badge {
-            background: rgba(59, 130, 246, 0.1);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            color: var(--accent-glow);
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin: 0 auto 16px auto;
-        }
-
-        .lyrics-viewport {
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.02);
-            border-radius: 16px;
-            padding: 24px;
-            min-height: 180px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 24px;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .lyrics-content {
-            font-size: 1.05rem;
-            line-height: 1.6;
-            color: var(--text-primary);
-            white-space: pre-line;
-        }
-
-        .pagination-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-            width: 100%;
-        }
-
-        .arrow-nav {
-            background: none;
-            border: none;
-            color: var(--text-primary);
-            font-size: 1.25rem;
-            cursor: pointer;
-            padding: 8px 16px;
-        }
-
-        .arrow-nav:disabled {
-            color: #374151;
-            cursor: not-allowed;
-        }
-
-        .dots-group {
-            display: flex;
-            gap: 8px;
-        }
-
-        .dot-node {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background-color: #374151;
-        }
-
-        .dot-node.active {
-            background-color: var(--accent-blue);
-            box-shadow: 0 0 6px var(--accent-glow);
-        }
-
-        .gatekeeper-button {
-            width: 100%;
-            padding: 16px;
-            border-radius: 14px;
-            font-size: 1rem;
-            font-weight: 700;
-            border: none;
-            cursor: not-allowed;
-            background-color: #1f2937;
-            color: #4b5563;
-            transition: all 0.3s ease;
-            box-sizing: border-box;
-        }
-
-        .gatekeeper-button.ready {
-            background-color: #10b981;
-            color: #ffffff;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        }
     </style>
 </head>
 <body>
@@ -275,49 +126,32 @@
         <h1>Welcome To The Sanctuary</h1>
         <div class="description">Before you enter, choose your language to listen to the Sanctuary's anthem.</div>
         
-        <!-- Aligned Dashboard Language Buttons -->
+        <!-- Both buttons route directly to @RDSTracks with no background scripts to crash -->
         <div class="button-frame-group">
-            <div class="menu-btn" id="lang-en-btn" onclick="activateAnthemFramework('en')">
+            <div class="menu-btn" onclick="routeToChannel()">
                 <div class="btn-title">English Version</div>
                 <div class="btn-subtitle">Listen in English</div>
             </div>
             
-            <div class="menu-btn" id="lang-pidgin-btn" onclick="activateAnthemFramework('pidgin')">
+            <div class="menu-btn" onclick="routeToChannel()">
                 <div class="btn-title">Pidgin Version</div>
                 <div class="btn-subtitle">Listen in Pidgin</div>
             </div>
         </div>
-
-        <!-- ANTHEM ONBOARDING ENGINE FRAMEWORK -->
-        <div id="aof-disclosure-engine" class="framework-display-area">
-            
-            <!-- Sleek Clickable Button -->
-            <div id="embedded-sleek-audio-link" class="sleek-audio-button" onclick="launchTrackLink(event)">
-                <span class="icon-pulse">🎧</span>
-                <span id="embedded-button-text">Play Anthem on @RDSTracks</span>
-            </div>
-
-            <div class="section-badge" id="hud-section-label">INTRO</div>
-            
-            <div class="lyrics-viewport">
-                <div class="lyrics-content" id="hud-lyrics-body">Lyrics text goes here...</div>
-            </div>
-
-            <div class="pagination-row">
-                <button class="arrow-nav" id="left-arrow" onclick="changeSection(-1)">←</button>
-                <div class="dots-group" id="dots-matrix"></div>
-                <button class="arrow-nav" id="right-arrow" onclick="changeSection(1)">→</button>
-            </div>
-
-            <button class="gatekeeper-button" id="constitutional-gate-btn" onclick="sealContract()" disabled>
-                🔒 Absorb All Anthem Sections To Proceed
-            </button>
-        </div>
     </div>
 
     <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-
-        const anthemDatabase = {
-            "en": [
+        // Direct routing trigger
+        function routeToChannel() {
+            const tg = window.Telegram?.WebApp;
+            const targetUrl = "https://t.me";
+            
+            if (tg && typeof tg.openTelegramLink === "function") {
+                tg.openTelegramLink(targetUrl);
+            } else {
+                window.open(targetUrl, "_blank");
+            }
+        }
+    </script>
+</body>
+</html>
