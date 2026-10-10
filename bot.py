@@ -11,7 +11,7 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
 # Your WebApp gateway URL hosted via Vercel
-BASE_URL = "https://vercel.app"
+BASE_URL = "https://repellano-sanctuary-gate.vercel.app/"
 
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
