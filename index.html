@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Repellano Digital Sanctuary</title>
-    <!-- Official Telegram WebApp SDK Pathway -->
+    <!-- Official Telegram WebApp SDK -->
     <script src="https://telegram.org"></script>
     <style>
         :root {
@@ -44,7 +44,6 @@
             box-sizing: border-box;
         }
 
-        /* Shield Emblem Glowing Graphics */
         .shield-wrapper {
             display: inline-flex;
             justify-content: center;
@@ -75,7 +74,7 @@
             padding: 0 10px;
         }
 
-        /* Flush Internal Button Frame Container */
+        /* Language Button Frame Container (Matches your screenshot layout) */
         .button-frame-group {
             width: 100%;
             box-sizing: border-box;
@@ -89,7 +88,6 @@
             margin-bottom: 24px;
         }
 
-        /* Sleek UI Version Audio Activation Buttons */
         .menu-btn {
             background: rgba(255, 255, 255, 0.02);
             border: 1px solid rgba(255, 255, 255, 0.05);
@@ -108,6 +106,7 @@
         }
 
         .menu-btn.active {
+            border-color: var(--accent-blue);
             box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
         }
 
@@ -125,7 +124,7 @@
 
         /* Framework Progressive Disclosure Container Layout */
         .framework-display-area {
-            display: none; /* Hidden until a core language version is launched */
+            display: none; 
             flex-direction: column;
             width: 100%;
             box-sizing: border-box;
@@ -133,6 +132,43 @@
 
         .framework-display-area.active {
             display: flex;
+        }
+
+        /* SLEEK EMBEDDED UI BUTTON (Requirement 3) */
+        .sleek-audio-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            text-decoration: none;
+            width: 100%;
+            padding: 18px;
+            border-radius: 14px;
+            font-weight: 700;
+            font-size: 1.05rem;
+            margin-bottom: 24px;
+            box-sizing: border-box;
+            box-shadow: 0 8px 16px -4px rgba(59, 130, 246, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .sleek-audio-button:active {
+            transform: scale(0.98);
+            box-shadow: 0 4px 8px -2px rgba(59, 130, 246, 0.4);
+        }
+
+        .sleek-audio-button .icon-pulse {
+            font-size: 1.3rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
         }
 
         .section-badge {
@@ -168,10 +204,8 @@
             line-height: 1.6;
             color: var(--text-primary);
             white-space: pre-line;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
         }
 
-        /* Pagination Matrix */
         .pagination-row {
             display: flex;
             justify-content: space-between;
@@ -211,7 +245,6 @@
             box-shadow: 0 0 6px var(--accent-glow);
         }
 
-        /* Gatekeeper Unlock Trigger Mechanism */
         .gatekeeper-button {
             width: 100%;
             padding: 16px;
@@ -237,7 +270,6 @@
 <body>
 
     <div class="container">
-        <!-- Central Glow Shield Icon Box -->
         <div class="shield-wrapper">
             <div class="shield-icon">🛡️</div>
         </div>
@@ -245,7 +277,7 @@
         <h1>Welcome To The Sanctuary</h1>
         <div class="description">Before you enter, choose your language to listen to the Sanctuary's anthem.</div>
         
-        <!-- Persistent Interactive UI Buttons (Fires Channel Audios Directly) -->
+        <!-- Interactive UI Buttons -->
         <div class="button-frame-group">
             <div class="menu-btn" id="lang-en-btn" onclick="activateAnthemFramework('en')">
                 <div class="btn-title">English Version</div>
@@ -258,22 +290,27 @@
             </div>
         </div>
 
-        <!-- PROGRESSIVE DISCLOSURE COMPONENT LAYER -->
+        <!-- ANTHEM ONBOARDING ENGINE FRAMEWORK -->
         <div id="aof-disclosure-engine" class="framework-display-area">
+            
+            <!-- FIXED: SLEEK UI EMBEDDED BUTTON TARGETING CHANNEL POST DIRECTLY -->
+            <a href="#" id="embedded-sleek-audio-link" target="_blank" class="sleek-audio-button">
+                <span class="icon-pulse">🎧</span>
+                <span id="embedded-button-text">Play Anthem on @RDSTracks</span>
+            </a>
+
             <div class="section-badge" id="hud-section-label">INTRO</div>
             
             <div class="lyrics-viewport">
-                <div class="lyrics-content" id="hud-lyrics-body">Select a version above to disclose structural content rules...</div>
+                <div class="lyrics-content" id="hud-lyrics-body">Lyrics text goes here...</div>
             </div>
 
-            <!-- Pagination Structural Flow Controllers -->
             <div class="pagination-row">
                 <button class="arrow-nav" id="left-arrow" onclick="changeSection(-1)">←</button>
                 <div class="dots-group" id="dots-matrix"></div>
                 <button class="arrow-nav" id="right-arrow" onclick="changeSection(1)">→</button>
             </div>
 
-            <!-- Hardlocked Gateway Proceed Trigger -->
             <button class="gatekeeper-button" id="constitutional-gate-btn" onclick="sealContract()" disabled>
                 🔒 Absorb All Anthem Sections To Proceed
             </button>
@@ -284,9 +321,3 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        // Exact Structural Lyrical Matrix Data Rules Model Mapping
-        const anthemDatabase = {
-            "en": [
-                { badge: "Intro", text: "(Atmospheric tech synths open, steady afrobeat kicks in)\nWelcome to the Sanctuary.\nWhere the chaotic markets find their perfect peace.\nThis is SemLeno's Repellano Digital Sanctuary." },
-                { badge: "Verse 1", text: "The global markets spin in a wild, endless race\nComplex forex trading moving at a blinding pace\nBut inside the Sanctuary, the vision is crystal clear\nWe strip away the chaos, we break down the fear\nTurning heavy burdens into a simple tool for all." },
-                { badge: "Chorus", text: "Simple. Automated. Universal.\nThirty-five FSSOs, the tech reversal!\nUniversal empowerment, no matter where you start\nRepellano lifting up every single heart!\nEvery single heart!\nEvery single heart!\nEvery single heart!" },
