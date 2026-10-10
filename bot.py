@@ -10,16 +10,19 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "8642428323:AAEe_3Hn-fQ-VHmcKMTdfXBIiC43b-lBG
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# Your WebApp gateway URL (We will host the overlay here via Vercel in Phase 2)
+# Your WebApp gateway URL hosted via Vercel
 BASE_URL = "https://vercel.app"
 
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     """
-    Handles the onboarding introduction. Sets up the persistent
-    Menu Button with the shield hook requirements.
+    Handles the onboarding introduction. Greets the user dynamically by name 
+    and displays the persistent AOF menu shield layout button.
     """
-    # Enforces the persistent text and link interface directly inside Telegram's UI
+    # Dynamically extract the user's real first name from their Telegram profile
+    user_name = message.from_user.first_name
+
+    # Set up the persistent Menu Button to sit at the bottom next to the text input box
     await bot.set_chat_menu_button(
         chat_id=message.chat.id,
         menu_button=MenuButtonWebApp(
@@ -28,9 +31,10 @@ async def cmd_start(message: Message) -> None:
         )
     )
     
+    # EXACT TEXT REQUIREMENT IMPLEMENTATION
     await message.answer(
-        "<b>The Repellano Digital Sanctuary Activated</b>\n\n"
-        "To begin the Anthem Onboarding Framework (AOF), click the <b>🛡️ Click to Enter the Sanctuary</b> menu button below next to your keyboard text field.",
+        f"<b>Welcome, Dear {user_name}</b>\n\n"
+        "To begin, take your first step. Click the menu button below",
         parse_mode="HTML"
     )
 
