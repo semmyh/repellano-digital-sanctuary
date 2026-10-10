@@ -134,7 +134,7 @@
             display: flex;
         }
 
-        /* FIXED: SLEEK UI EMBEDDED BUTTON WORKAROUND USING BUTTON ACTION EVENTS */
+        /* SLEEK UI AUDIO LINK BUTTON BUILD */
         .sleek-audio-button {
             display: inline-flex;
             align-items: center;
@@ -293,7 +293,7 @@
         <!-- ANTHEM ONBOARDING ENGINE FRAMEWORK -->
         <div id="aof-disclosure-engine" class="framework-display-area">
             
-            <!-- FIXED: EXPLICIT ONCLICK TRIGGER PIPING NATIVE DEEPLINKS FORWARD -->
+            <!-- Sleek UI Clickable Audio Launch Button -->
             <div id="embedded-sleek-audio-link" class="sleek-audio-button" onclick="navigateToMediaPost()">
                 <span class="icon-pulse">🎧</span>
                 <span id="embedded-button-text">Play Anthem on @RDSTracks</span>
@@ -321,3 +321,5 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
+        const anthemDatabase = {
+            "en": [
