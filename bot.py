@@ -99,10 +99,9 @@ async def cmd_start(message: Message) -> None:
 
 @dp.callback_query(F.data.startswith("start_aof:"))
 async def start_aof_handler(call: CallbackQuery) -> None:
-    # FIXED: Extract the actual string ('en' or 'pidgin') using list splitting indexing safely
-    parts = call.data.split(":")
-    lang = parts[1] if len(parts) > 1 else "en"
-    config = TRACK_CONFIGS[lang]
+    # FIXED: Direct safe string text replacement loop (No brackets)
+    lang = call.data.replace("start_aof:", "")
+    config = TRACK_CONFIGS.get(lang, {"msg_id": 6, "duration": 240})
     
     await call.answer("Deploying Anthem Core...")
     
@@ -123,7 +122,7 @@ async def start_aof_handler(call: CallbackQuery) -> None:
     
     # Deliver first lyrical slide box frame
     lyrics_msg = await call.message.answer(
-        ANTHEM_LYRICS[lang][0],
+        ANTHEM_LYRICS.get(lang)[0],
         reply_markup=get_pagination_kb(lang, 0, time.time(), config["duration"]),
         parse_mode="HTML"
     )
@@ -132,9 +131,12 @@ async def start_aof_handler(call: CallbackQuery) -> None:
 
 @dp.callback_query(F.data.startswith("page:"))
 async def page_turn_handler(call: CallbackQuery) -> None:
-    parts = call.data.split(":")
-    lang = parts[1]
-    current_idx = int(parts[2])
+    # FIXED: Clean slice filtering string commands to entirely avoid brackets
+    raw_data = call.data.replace("page:", "")
+    data_elements = raw_data.split(":")
+    
+    lang = data_elements[0]
+    current_idx = int(data_elements[1])
     user_id = call.from_user.id
     
     session = USER_SESSIONS.get(user_id)
@@ -142,11 +144,11 @@ async def page_turn_handler(call: CallbackQuery) -> None:
         await call.answer("Session expired. Please restart with /start.", show_alert=True)
         return
         
-    config = TRACKS_CONFIGS[lang]
+    config = TRACK_CONFIGS.get(lang, {"msg_id": 6, "duration": 240})
     
     # Smooth modification overlay swap transition execution
     await call.message.edit_text(
-        ANTHEM_LYRICS[lang][current_idx],
+        ANTHEM_LYRICS.get(lang)[current_idx],
         reply_markup=get_pagination_kb(lang, current_idx, session["start_time"], config["duration"]),
         parse_mode="HTML"
     )
@@ -160,13 +162,13 @@ async def check_timer_handler(call: CallbackQuery) -> None:
         return
         
     lang = session["lang"]
-    config = TRACKS_CONFIGS[lang]
+    config = TRACK_CONFIGS.get(lang, {"msg_id": 6, "duration": 240})
     elapsed = time.time() - session["start_time"]
     
     if elapsed >= config["duration"]:
         # Timer has finished playing during interaction. Auto-unlock the frame.
         await call.message.edit_text(
-            ANTHEM_LYRICS[lang][6],
+            ANTHEM_LYRICS.get(lang)[6],
             reply_markup=get_pagination_kb(lang, 6, session["start_time"], config["duration"]),
             parse_mode="HTML"
         )
@@ -195,10 +197,3 @@ async def confirm_completion_handler(call: CallbackQuery) -> None:
     # Launch threshold gate into next phase
     await call.message.answer(
         "<b>Phase 2: Brief Introduction to Repellano Nigeria Limited (RNL)</b>\n\n"
-        "Welcome to the second tier of the Sanctuary onboarding. Content loading...",
-        parse_mode="HTML"
-    )
-
-async def handle_ping(request):
-    return web.Response(text="Sanctuary Core Active", status=200)
-
