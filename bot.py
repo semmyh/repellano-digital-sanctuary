@@ -99,7 +99,6 @@ async def cmd_start(message: Message) -> None:
 
 @dp.callback_query(F.data.startswith("start_aof:"))
 async def start_aof_handler(call: CallbackQuery) -> None:
-    # FIXED: Direct safe string text replacement loop (No brackets)
     lang = call.data.replace("start_aof:", "")
     config = TRACK_CONFIGS.get(lang, {"msg_id": 6, "duration": 240})
     
@@ -131,10 +130,10 @@ async def start_aof_handler(call: CallbackQuery) -> None:
 
 @dp.callback_query(F.data.startswith("page:"))
 async def page_turn_handler(call: CallbackQuery) -> None:
-    # FIXED: Clean slice filtering string commands to entirely avoid brackets
     raw_data = call.data.replace("page:", "")
     data_elements = raw_data.split(":")
     
+    # Secure direct index variables extraction to avoid formatting omissions
     lang = data_elements[0]
     current_idx = int(data_elements[1])
     user_id = call.from_user.id
@@ -166,7 +165,6 @@ async def check_timer_handler(call: CallbackQuery) -> None:
     elapsed = time.time() - session["start_time"]
     
     if elapsed >= config["duration"]:
-        # Timer has finished playing during interaction. Auto-unlock the frame.
         await call.message.edit_text(
             ANTHEM_LYRICS.get(lang)[6],
             reply_markup=get_pagination_kb(lang, 6, session["start_time"], config["duration"]),
@@ -190,10 +188,17 @@ async def confirm_completion_handler(call: CallbackQuery) -> None:
             await bot.delete_message(chat_id=user_id, message_id=session["audio_msg_id"])
             await bot.delete_message(chat_id=user_id, message_id=session["lyrics_msg_id"])
         except Exception:
-            pass # Failsafes to prevent background clutter crashes
+            pass 
             
         USER_SESSIONS.pop(user_id, None)
         
     # Launch threshold gate into next phase
     await call.message.answer(
         "<b>Phase 2: Brief Introduction to Repellano Nigeria Limited (RNL)</b>\n\n"
+        "Welcome to the second tier of the Sanctuary onboarding. Content loading...",
+        parse_mode="HTML"
+    )
+
+async def handle_ping(request):
+    return web.Response(text="Sanctuary Core Active", status=200)
+
