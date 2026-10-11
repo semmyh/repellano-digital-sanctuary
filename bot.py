@@ -89,7 +89,6 @@ async def cmd_start(message: Message) -> None:
         menu_button=MenuButtonWebApp(text="🛡️ Sanctuary Gate", web_app=WebAppInfo(url=BASE_URL))
     )
     
-    # REQUIREMENT 1 COPY SPECIFICATIONS
     await message.answer(
         f"Welcome, Dear {user_name}! To begin, take the first step. Choose your language version below to enjoy the Sanctuary's Anthem",
         reply_markup=get_language_menu(),
@@ -126,12 +125,12 @@ async def start_aof_handler(call: CallbackQuery) -> None:
 
 @dp.callback_query(F.data.startswith("go_"))
 async def page_turn_handler(call: CallbackQuery) -> None:
-    # Bracket-Free safe string parsing extraction technique
     raw_payload = call.data.replace("go_", "")
-    lang = "en"
-    if "pidgin_to_" in raw_payload:
-        lang = "pidgin"
-        
+    
+    # Bracket-Free text analysis to find the chosen language string
+    lang = "pidgin" if "pidgin_to_" in raw_payload else "en"
+    
+    # Isolate the index number without relying on bracket syntax
     idx_str = raw_payload.replace("en_to_", "").replace("pidgin_to_", "")
     current_idx = int(idx_str)
     user_id = call.from_user.id
@@ -179,7 +178,6 @@ async def confirm_completion_handler(call: CallbackQuery) -> None:
     
     await call.answer("Verification Confirmed.")
     
-    # REQUIREMENT 4: Clean slate background deletion command sequence
     if session:
         try:
             await bot.delete_message(chat_id=user_id, message_id=session["audio_msg_id"])
@@ -189,7 +187,6 @@ async def confirm_completion_handler(call: CallbackQuery) -> None:
             
         USER_SESSIONS.pop(user_id, None)
         
-    # Phase 2 Gate activation update 
     await call.message.answer(
         "<b>Phase 2: Brief Introduction to Repellano Nigeria Limited (RNL)</b>\n\n"
         "Welcome to the second tier of the Sanctuary onboarding. Content loading...",
@@ -206,3 +203,6 @@ async def main() -> None:
     await runner.setup()
     port = int(os.getenv("PORT", 10000))
     site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    
+    await bot.delete_webhook(drop_pending_updates=True)
