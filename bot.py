@@ -91,7 +91,6 @@ async def cmd_start(message: Message) -> None:
         menu_button=MenuButtonWebApp(text="🛡️ Sanctuary Gate", web_app=WebAppInfo(url=BASE_URL))
     )
     
-    # REQUIREMENT 1 COPY SPECIFICATIONS
     await message.answer(
         f"Welcome, Dear {user_name}! To begin, take the first step. Choose your language version below to enjoy the Sanctuary's Anthem",
         reply_markup=get_language_menu(),
@@ -100,8 +99,10 @@ async def cmd_start(message: Message) -> None:
 
 @dp.callback_query(F.data.startswith("start_aof:"))
 async def start_aof_handler(call: CallbackQuery) -> None:
-    lang = call.data.split(":")[1]
-    config = TRACKS_CONFIGS[lang]
+    # FIXED: Extract the actual string ('en' or 'pidgin') using list splitting indexing safely
+    parts = call.data.split(":")
+    lang = parts[1] if len(parts) > 1 else "en"
+    config = TRACK_CONFIGS[lang]
     
     await call.answer("Deploying Anthem Core...")
     
@@ -131,8 +132,9 @@ async def start_aof_handler(call: CallbackQuery) -> None:
 
 @dp.callback_query(F.data.startswith("page:"))
 async def page_turn_handler(call: CallbackQuery) -> None:
-    _, lang, idx_str = call.data.split(":")
-    current_idx = int(idx_str)
+    parts = call.data.split(":")
+    lang = parts[1]
+    current_idx = int(parts[2])
     user_id = call.from_user.id
     
     session = USER_SESSIONS.get(user_id)
@@ -180,7 +182,7 @@ async def confirm_completion_handler(call: CallbackQuery) -> None:
     
     await call.answer("Verification Confirmed.")
     
-    # REQUIREMENT 4: Clean slate background deletion routine
+    # Clean slate background deletion routine
     if session:
         try:
             await bot.delete_message(chat_id=user_id, message_id=session["audio_msg_id"])
@@ -190,7 +192,7 @@ async def confirm_completion_handler(call: CallbackQuery) -> None:
             
         USER_SESSIONS.pop(user_id, None)
         
-    # Launch threshold threshold gate into next phase
+    # Launch threshold gate into next phase
     await call.message.answer(
         "<b>Phase 2: Brief Introduction to Repellano Nigeria Limited (RNL)</b>\n\n"
         "Welcome to the second tier of the Sanctuary onboarding. Content loading...",
@@ -200,6 +202,3 @@ async def confirm_completion_handler(call: CallbackQuery) -> None:
 async def handle_ping(request):
     return web.Response(text="Sanctuary Core Active", status=200)
 
-async def main() -> None:
-    app = web.Application()
-    app.router.add_get("/", handle_ping)
