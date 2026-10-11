@@ -115,8 +115,12 @@ async def start_aof_handler(call: CallbackQuery) -> None:
         "lyrics_msg_id": None
     }
     
+    # Clean baseline lookup format
+    lyrics_pool = ANTHEM_LYRICS[lang]
+    first_slide = lyrics_pool[0]
+    
     lyrics_msg = await call.message.answer(
-        ANTHEM_LYRICS.get(lang)[0],
+        first_slide,
         reply_markup=get_pagination_kb(lang, 0, time.time(), config["duration"]),
         parse_mode="HTML"
     )
@@ -127,10 +131,7 @@ async def start_aof_handler(call: CallbackQuery) -> None:
 async def page_turn_handler(call: CallbackQuery) -> None:
     raw_payload = call.data.replace("go_", "")
     
-    # Bracket-Free text analysis to find the chosen language string
     lang = "pidgin" if "pidgin_to_" in raw_payload else "en"
-    
-    # Isolate the index number without relying on bracket syntax
     idx_str = raw_payload.replace("en_to_", "").replace("pidgin_to_", "")
     current_idx = int(idx_str)
     user_id = call.from_user.id
@@ -142,8 +143,12 @@ async def page_turn_handler(call: CallbackQuery) -> None:
         
     config = TRACK_CONFIGS.get(lang, {"msg_id": 6, "duration": 240})
     
+    # Clean baseline lookup formatting array matrix
+    lyrics_pool = ANTHEM_LYRICS[lang]
+    target_slide = lyrics_pool[current_idx]
+    
     await call.message.edit_text(
-        ANTHEM_LYRICS.get(lang)[current_idx],
+        target_slide,
         reply_markup=get_pagination_kb(lang, current_idx, session["start_time"], config["duration"]),
         parse_mode="HTML"
     )
@@ -161,8 +166,11 @@ async def check_timer_handler(call: CallbackQuery) -> None:
     elapsed = time.time() - session["start_time"]
     
     if elapsed >= config["duration"]:
+        lyrics_pool = ANTHEM_LYRICS[lang]
+        final_slide = lyrics_pool[6]
+        
         await call.message.edit_text(
-            ANTHEM_LYRICS.get(lang)[6],
+            final_slide,
             reply_markup=get_pagination_kb(lang, 6, session["start_time"], config["duration"]),
             parse_mode="HTML"
         )
@@ -202,7 +210,3 @@ async def main() -> None:
     runner = web.AppRunner(app)
     await runner.setup()
     port = int(os.getenv("PORT", 10000))
-    site = web.TCPSite(runner, "0.0.0.0", port)
-    await site.start()
-    
-    await bot.delete_webhook(drop_pending_updates=True)
