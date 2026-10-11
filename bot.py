@@ -48,7 +48,6 @@ ANTHEM_LYRICS = {
     ]
 }
 
-# Tracking dictionary to securely check timelines and active interface states
 USER_SESSIONS = {}
 
 def get_language_menu() -> InlineKeyboardMarkup:
@@ -61,17 +60,16 @@ def get_language_menu() -> InlineKeyboardMarkup:
 
 def get_pagination_kb(lang: str, current_idx: int, start_time: float, target_duration: int) -> InlineKeyboardMarkup:
     buttons = []
-    
-    # Navigation arrows row layout
     nav_row = []
+    
     if current_idx > 0:
-        nav_row.append(InlineKeyboardButton(text="← Back", callback_data=f"page:{lang}:{current_idx-1}"))
+        nav_row.append(InlineKeyboardButton(text="← Back", callback_data=f"go_{lang}_to_{current_idx-1}"))
     if current_idx < 6:
-        nav_row.append(InlineKeyboardButton(text="Next Section ➔", callback_data=f"page:{lang}:{current_idx+1}"))
+        nav_row.append(InlineKeyboardButton(text="Next Section ➔", callback_data=f"go_{lang}_to_{current_idx+1}"))
+        
     if nav_row:
         buttons.append(nav_row)
         
-    # Enforced Gatekeeper Lock check evaluation loop
     if current_idx == 6:
         elapsed = time.time() - start_time
         if elapsed >= target_duration:
@@ -91,6 +89,7 @@ async def cmd_start(message: Message) -> None:
         menu_button=MenuButtonWebApp(text="🛡️ Sanctuary Gate", web_app=WebAppInfo(url=BASE_URL))
     )
     
+    # REQUIREMENT 1 COPY SPECIFICATIONS
     await message.answer(
         f"Welcome, Dear {user_name}! To begin, take the first step. Choose your language version below to enjoy the Sanctuary's Anthem",
         reply_markup=get_language_menu(),
@@ -104,14 +103,12 @@ async def start_aof_handler(call: CallbackQuery) -> None:
     
     await call.answer("Deploying Anthem Core...")
     
-    # Deliver the cloud audio post file natively into chat log views
     audio_msg = await bot.copy_message(
         chat_id=call.from_user.id,
         from_chat_id=CHANNEL_ID,
         message_id=config["msg_id"]
     )
     
-    # Launch tracking blueprint parameter vectors
     USER_SESSIONS[call.from_user.id] = {
         "lang": lang,
         "start_time": time.time(),
@@ -119,7 +116,6 @@ async def start_aof_handler(call: CallbackQuery) -> None:
         "lyrics_msg_id": None
     }
     
-    # Deliver first lyrical slide box frame
     lyrics_msg = await call.message.answer(
         ANTHEM_LYRICS.get(lang)[0],
         reply_markup=get_pagination_kb(lang, 0, time.time(), config["duration"]),
@@ -128,14 +124,16 @@ async def start_aof_handler(call: CallbackQuery) -> None:
     
     USER_SESSIONS[call.from_user.id]["lyrics_msg_id"] = lyrics_msg.message_id
 
-@dp.callback_query(F.data.startswith("page:"))
+@dp.callback_query(F.data.startswith("go_"))
 async def page_turn_handler(call: CallbackQuery) -> None:
-    raw_data = call.data.replace("page:", "")
-    data_elements = raw_data.split(":")
-    
-    # Secure direct index variables extraction to avoid formatting omissions
-    lang = data_elements[0]
-    current_idx = int(data_elements[1])
+    # Bracket-Free safe string parsing extraction technique
+    raw_payload = call.data.replace("go_", "")
+    lang = "en"
+    if "pidgin_to_" in raw_payload:
+        lang = "pidgin"
+        
+    idx_str = raw_payload.replace("en_to_", "").replace("pidgin_to_", "")
+    current_idx = int(idx_str)
     user_id = call.from_user.id
     
     session = USER_SESSIONS.get(user_id)
@@ -145,7 +143,6 @@ async def page_turn_handler(call: CallbackQuery) -> None:
         
     config = TRACK_CONFIGS.get(lang, {"msg_id": 6, "duration": 240})
     
-    # Smooth modification overlay swap transition execution
     await call.message.edit_text(
         ANTHEM_LYRICS.get(lang)[current_idx],
         reply_markup=get_pagination_kb(lang, current_idx, session["start_time"], config["duration"]),
@@ -182,7 +179,7 @@ async def confirm_completion_handler(call: CallbackQuery) -> None:
     
     await call.answer("Verification Confirmed.")
     
-    # Clean slate background deletion routine
+    # REQUIREMENT 4: Clean slate background deletion command sequence
     if session:
         try:
             await bot.delete_message(chat_id=user_id, message_id=session["audio_msg_id"])
@@ -192,7 +189,7 @@ async def confirm_completion_handler(call: CallbackQuery) -> None:
             
         USER_SESSIONS.pop(user_id, None)
         
-    # Launch threshold gate into next phase
+    # Phase 2 Gate activation update 
     await call.message.answer(
         "<b>Phase 2: Brief Introduction to Repellano Nigeria Limited (RNL)</b>\n\n"
         "Welcome to the second tier of the Sanctuary onboarding. Content loading...",
@@ -202,3 +199,10 @@ async def confirm_completion_handler(call: CallbackQuery) -> None:
 async def handle_ping(request):
     return web.Response(text="Sanctuary Core Active", status=200)
 
+async def main() -> None:
+    app = web.Application()
+    app.router.add_get("/", handle_ping)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.getenv("PORT", 10000))
+    site = web.TCPSite(runner, "0.0.0.0", port)
