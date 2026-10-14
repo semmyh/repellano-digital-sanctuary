@@ -28,24 +28,24 @@ TRACK_CONFIGS = {
 
 # 2. Complete 7-Block Lyrical Core Blueprint
 ANTHEM_LYRICS = {
-    "en": [
-        "<b>[1/7] Intro</b>\n\n(Atmospheric tech synths open, steady afrobeat kicks in)\nWelcome to the Sanctuary.\nWhere the chaotic markets find their perfect peace.\nThis is SemLeno's Repellano Digital Sanctuary.",
-        "<b>[2/7] Verse 1</b>\n\nThe global markets spin in a wild, endless race\nComplex forex trading moving at a blinding pace\nBut inside the Sanctuary, the vision is crystal clear\nWe strip away the chaos, we break down the fear\nTurning heavy burdens into a simple tool for all.",
-        "<b>[3/7] Chorus</b>\n\nSimple. Automated. Universal.\nThirty-five FSSOs, the tech reversal!\nUniversal empowerment, no matter where you start\nRepellano lifting up, up, up, up, every single heart!\nEvery single heart!\nEvery single heart",
-        "<b>[4/7] Verse 2</b>\n\nAn ecosystem built to redefine the grand design\nWhere mathematics meets the market, aligning line by line\nA seamless architecture, steady, smooth, and deep\nWorking in the silence while the world is fast asleep.",
-        "<b>[5/7] Verse 3</b>\n\nThirty-five FSSOs standing structured and strong\nFinancial Support Service Offerings where they belong\nAutomated utilities that never tire or fade\nTo help all those struggling with their finances",
-        "<b>[6/7] Chorus</b>\n\nSimple. Automated. Universal.\nThirty-five FSSOs, the tech reversal!\nUniversal empowerment, no matter where you start\nRepellano lifting up, up, up, up, every single heart!\nEvery single heart!\nEvery single heart!",
-        "<b>[7/7] Outro</b>\n\nThe Digital Sanctuary.\nWe build, we automate, we rise.\n[Fade Out] [End]"
-    ],
-    "pidgin": [
-        "<b>[1/7] Intro</b>\n\nWelcome to the Sanctuary.\nWhere jaga jaga forex markets find their perfect peace.\nThis na Semleno Repellano Digital Sanctuary.",
-        "<b>[2/7] Verse 1</b>\n\nThe world market dey spin anyhow, e no dey stop\nForex trading sharp well-well, things just dey pop\nBut inside this Sanctuary, the vision clear pass glass\nWe dey commot the confusion, make the fear join pass\nWe dey change heavy loaduu, to simple tool for everybody.",
-        "<b>[3/7] Chorus</b>\n\nE simple. E dey run on own. E dey for everyone.\nThirty-five FSSOs, the tech don change the run!\nPower dey for everybody, no matter where you start from\nRepellano oh, oh, oh, every single heart!\nEvery single heart!\nEvery single heart!\nEvery single heart!",
-        "<b>[4/7] Verse 2</b>\n\nThe whole setup dey here to change how things suppose to be\nWhere math and market jam, things arrange properly\nThe system solid well-well, e smooth and e deep\nE dey work sharp-sharp inside silence when the world dey sleep.",
-        "<b>[5/7] Verse 3</b>\n\nThirty-five FSSOs stand gidigba, everything set well\nFinancial Support Service Offerings, na him we call FSSOs\nAutomated tools wey no dey tire or lose face\nTo support everybody wey dey struggle hard to find small money",
-        "<b>[6/7] Chorus</b>\n\nSimple. Automated. Universal.\nThirty-five FSSOs, the tech reversal!\nUniversal empowerment, no matter where you start\nRepellano lifting all, all, all, all, every single heart!\nEvery single heart!\nEvery single heart!",
-        "<b>[7/7] Outro</b>\n\nThe Digital Sanctuary.\nWe build, we automate, we rise.\n[Fade Out] [End]"
-    ]
+    "en": {
+        "0": "<b>[1/7] Intro</b>\n\n(Atmospheric tech synths open, steady afrobeat kicks in)\nWelcome to the Sanctuary.\nWhere the chaotic markets find their perfect peace.\nThis is SemLeno's Repellano Digital Sanctuary.",
+        "1": "<b>[2/7] Verse 1</b>\n\nThe global markets spin in a wild, endless race\nComplex forex trading moving at a blinding pace\nBut inside the Sanctuary, the vision is crystal clear\nWe strip away the chaos, we break down the fear\nTurning heavy burdens into a simple tool for all.",
+        "2": "<b>[3/7] Chorus</b>\n\nSimple. Automated. Universal.\nThirty-five FSSOs, the tech reversal!\nUniversal empowerment, no matter where you start\nRepellano lifting up, up, up, up, every single heart!\nEvery single heart!\nEvery single heart",
+        "3": "<b>[4/7] Verse 2</b>\n\nAn ecosystem built to redefine the grand design\nWhere mathematics meets the market, aligning line by line\nA seamless architecture, steady, smooth, and deep\nWorking in the silence while the world is fast asleep.",
+        "4": "<b>[5/7] Verse 3</b>\n\nThirty-five FSSOs standing structured and strong\nFinancial Support Service Offerings where they belong\nAutomated utilities that never tire or fade\nTo help all those struggling with their finances",
+        "5": "<b>[6/7] Chorus</b>\n\nSimple. Automated. Universal.\nThirty-five FSSOs, the tech reversal!\nUniversal empowerment, no matter where you start\nRepellano lifting up, up, up, up, every single heart!\nEvery single heart!\nEvery single heart!",
+        "6": "<b>[7/7] Outro</b>\n\nThe Digital Sanctuary.\nWe build, we automate, we rise.\n[Fade Out] [End]"
+    },
+    "pidgin": {
+        "0": "<b>[1/7] Intro</b>\n\nWelcome to the Sanctuary.\nWhere jaga jaga forex markets find their perfect peace.\nThis na Semleno Repellano Digital Sanctuary.",
+        "1": "<b>[2/7] Verse 1</b>\n\nThe world market dey spin anyhow, e no dey stop\nForex trading sharp well-well, things just dey pop\nBut inside this Sanctuary, the vision clear pass glass\nWe dey commot the confusion, make the fear join pass\nWe dey change heavy loaduu, to simple tool for everybody.",
+        "2": "<b>[3/7] Chorus</b>\n\nE simple. E dey run on own. E dey for everyone.\nThirty-five FSSOs, the tech don change the run!\nPower dey for everybody, no matter where you start from\nRepellano oh, oh, oh, every single heart!\nEvery single heart!\nEvery single heart!\nEvery single heart!",
+        "3": "<b>[4/7] Verse 2</b>\n\nThe whole setup dey here to change how things suppose to be\nWhere math and market jam, things arrange properly\nThe system solid well-well, e smooth and e deep\nE dey work sharp-sharp inside silence when the world dey sleep.",
+        "4": "<b>[5/7] Verse 3</b>\n\nThirty-five FSSOs stand gidigba, everything set well\nFinancial Support Service Offerings, na him we call FSSOs\nAutomated tools wey no dey tire or lose face\nTo support everybody wey dey struggle hard to find small money",
+        "5": "<b>[6/7] Chorus</b>\n\nSimple. Automated. Universal.\nThirty-five FSSOs, the tech reversal!\nUniversal empowerment, no matter where you start\nRepellano lifting all, all, all, all, every single heart!\nEvery single heart!\nEvery single heart!",
+        "6": "<b>[7/7] Outro</b>\n\nThe Digital Sanctuary.\nWe build, we automate, we rise.\n[Fade Out] [End]"
+    }
 }
 
 USER_SESSIONS = {}
@@ -115,9 +115,9 @@ async def start_aof_handler(call: CallbackQuery) -> None:
         "lyrics_msg_id": None
     }
     
-    # Clean baseline lookup format
-    lyrics_pool = ANTHEM_LYRICS[lang]
-    first_slide = lyrics_pool[0]
+    # FIXED: Explicit slot selection by string key to completely avoid bracket bugs
+    lyrics_pool = ANTHEM_LYRICS.get(lang, {})
+    first_slide = lyrics_pool.get("0", "Lyrics initialization error...")
     
     lyrics_msg = await call.message.answer(
         first_slide,
@@ -143,9 +143,9 @@ async def page_turn_handler(call: CallbackQuery) -> None:
         
     config = TRACK_CONFIGS.get(lang, {"msg_id": 6, "duration": 240})
     
-    # Clean baseline lookup formatting array matrix
-    lyrics_pool = ANTHEM_LYRICS[lang]
-    target_slide = lyrics_pool[current_idx]
+    # FIXED: Explicit lookups using explicit string indices to guarantee safety
+    lyrics_pool = ANTHEM_LYRICS.get(lang, {})
+    target_slide = lyrics_pool.get(str(current_idx), "Lyrics alignment error...")
     
     await call.message.edit_text(
         target_slide,
@@ -166,8 +166,8 @@ async def check_timer_handler(call: CallbackQuery) -> None:
     elapsed = time.time() - session["start_time"]
     
     if elapsed >= config["duration"]:
-        lyrics_pool = ANTHEM_LYRICS[lang]
-        final_slide = lyrics_pool[6]
+        lyrics_pool = ANTHEM_LYRICS.get(lang, {})
+        final_slide = lyrics_pool.get("6", "Lyrics completion error...")
         
         await call.message.edit_text(
             final_slide,
@@ -195,18 +195,7 @@ async def confirm_completion_handler(call: CallbackQuery) -> None:
             
         USER_SESSIONS.pop(user_id, None)
         
+    # Phase 1 complete landing message anchor
     await call.message.answer(
-        "<b>Phase 2: Brief Introduction to Repellano Nigeria Limited (RNL)</b>\n\n"
-        "Welcome to the second tier of the Sanctuary onboarding. Content loading...",
-        parse_mode="HTML"
-    )
-
-async def handle_ping(request):
-    return web.Response(text="Sanctuary Core Active", status=200)
-
-async def main() -> None:
-    app = web.Application()
-    app.router.add_get("/", handle_ping)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    port = int(os.getenv("PORT", 10000))
+        "<b>🎉 Onboarding Anthem Complete</b>\n\n"
+        "Your playback verification has passed the structural threshold cleanly. Standing by for instructions.",
