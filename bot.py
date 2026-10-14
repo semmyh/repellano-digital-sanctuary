@@ -53,8 +53,8 @@ USER_SESSIONS = {}
 def get_language_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🎧 English Version", callback_data="start_aof:en")],
-            [InlineKeyboardButton(text="🎧 Pidgin Version", callback_data="start_aof:pidgin")]
+            [InlineKeyboardButton(text="🎧 English Version", callback_data="start_en_aof")],
+            [InlineKeyboardButton(text="🎧 Pidgin Version", callback_data="start_pidgin_aof")]
         ]
     )
 
@@ -62,10 +62,13 @@ def get_pagination_kb(lang: str, current_idx: int, start_time: float, target_dur
     buttons = []
     nav_row = []
     
+    # Explicit pagination string actions to completely bypass copy/paste stripping bugs
     if current_idx > 0:
-        nav_row.append(InlineKeyboardButton(text="← Back", callback_data=f"go_{lang}_to_{current_idx-1}"))
+        prev_num = current_idx - 1
+        nav_row.append(InlineKeyboardButton(text="← Back", callback_data=f"move_{lang}_{prev_num}"))
     if current_idx < 6:
-        nav_row.append(InlineKeyboardButton(text="Next Section ➔", callback_data=f"go_{lang}_to_{current_idx+1}"))
+        next_num = current_idx + 1
+        nav_row.append(InlineKeyboardButton(text="Next Section ➔", callback_data=f"move_{lang}_{next_num}"))
         
     if nav_row:
         buttons.append(nav_row)
@@ -95,9 +98,10 @@ async def cmd_start(message: Message) -> None:
         parse_mode="HTML"
     )
 
-@dp.callback_query(F.data.startswith("start_aof:"))
+@dp.callback_query(F.data.startswith("start_"))
 async def start_aof_handler(call: CallbackQuery) -> None:
-    lang = call.data.replace("start_aof:", "")
+    # Explicit language text identification path rule mapping
+    lang = "pidgin" if "pidgin_aof" in call.data else "en"
     config = TRACK_CONFIGS.get(lang, {"msg_id": 6, "duration": 240})
     
     await call.answer("Deploying Anthem Core...")
@@ -115,7 +119,6 @@ async def start_aof_handler(call: CallbackQuery) -> None:
         "lyrics_msg_id": None
     }
     
-    # FIXED: Explicit slot selection by string key to completely avoid bracket bugs
     lyrics_pool = ANTHEM_LYRICS.get(lang, {})
     first_slide = lyrics_pool.get("0", "Lyrics initialization error...")
     
@@ -127,12 +130,13 @@ async def start_aof_handler(call: CallbackQuery) -> None:
     
     USER_SESSIONS[call.from_user.id]["lyrics_msg_id"] = lyrics_msg.message_id
 
-@dp.callback_query(F.data.startswith("go_"))
+@dp.callback_query(F.data.startswith("move_"))
 async def page_turn_handler(call: CallbackQuery) -> None:
-    raw_payload = call.data.replace("go_", "")
+    # FIXED: Extract data elements purely by explicit string matching rules
+    lang = "pidgin" if "move_pidgin_" in call.data else "en"
     
-    lang = "pidgin" if "pidgin_to_" in raw_payload else "en"
-    idx_str = raw_payload.replace("en_to_", "").replace("pidgin_to_", "")
+    # Clean string slice technique to pull the single index character out safely
+    idx_str = call.data.replace("move_en_", "").replace("move_pidgin_", "")
     current_idx = int(idx_str)
     user_id = call.from_user.id
     
@@ -143,7 +147,6 @@ async def page_turn_handler(call: CallbackQuery) -> None:
         
     config = TRACK_CONFIGS.get(lang, {"msg_id": 6, "duration": 240})
     
-    # FIXED: Explicit lookups using explicit string indices to guarantee safety
     lyrics_pool = ANTHEM_LYRICS.get(lang, {})
     target_slide = lyrics_pool.get(str(current_idx), "Lyrics alignment error...")
     
@@ -195,7 +198,5 @@ async def confirm_completion_handler(call: CallbackQuery) -> None:
             
         USER_SESSIONS.pop(user_id, None)
         
-    # Phase 1 complete landing message anchor
     await call.message.answer(
         "<b>🎉 Onboarding Anthem Complete</b>\n\n"
-        "Your playback verification has passed the structural threshold cleanly. Standing by for instructions.",
