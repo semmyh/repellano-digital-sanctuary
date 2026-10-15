@@ -19,7 +19,7 @@ dp = Dispatcher()
 
 CHANNEL_ID = "@RDSTracks"
 
-# Enforced Time Lock Settings matching the files exactly
+# Asset configurations tracking your exact file length timelines
 CONFIGS = {
     "en": {"msg_id": 6, "duration": 240, "title": "English"},
     "pidgin": {"msg_id": 15, "duration": 234, "title": "Pidgin"}
@@ -28,6 +28,7 @@ CONFIGS = {
 USER_SESSIONS = {}
 VERIFIED_USERS = set()
 
+# Descriptive, action-oriented replay tool button
 def get_library_reply_kb() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
@@ -67,7 +68,10 @@ def get_verify_kb(lang: str, start_time: float, duration: int) -> InlineKeyboard
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     user_name = message.from_user.first_name
+    
+    # Forces persistent text removal and greys out the input frame button area
     await bot.set_chat_menu_button(chat_id=message.chat.id)
+    
     await message.answer(
         f"Welcome, Dear {user_name}! To begin, take the first step. Choose your language version below to enjoy the Sanctuary's Anthem",
         reply_markup=get_language_menu(),
@@ -185,8 +189,3 @@ async def library_replay_handler(message: Message) -> None:
         "Find the full textual reference charters for your saved media files below for your personal replay library records."
     )
     await bot.send_message(chat_id=user_chat_id, text=lyrics_archive_text, parse_mode="HTML")
-    await bot.send_message(chat_id=user_chat_id, text="✅ Success! Anthem track files plus lyrics copy have been successfully forwarded to your Telegram Saved Messages folder. Check your chat list notification.")
-
-async def handle_ping(request):
-    return web.Response(text="Sanctuary Core Active", status=200)
-
