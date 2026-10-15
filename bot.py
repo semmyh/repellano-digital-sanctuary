@@ -56,7 +56,7 @@ async def cmd_start(message: Message) -> None:
         menu_button=MenuButtonWebApp(text="🛡️ Sanctuary Gate", web_app=WebAppInfo(url=BASE_URL))
     )
     await message.answer(
-        f"Welcome, Dear {user_name}! To begin, take the first step. Choose your language version below to enjoy the Sanctuary's Anthem",
+        f"Welcome, Dear {user_name}! To begin, take the first step. Choose your language version below to listen to our Onboarding Anthem and have your first feel of the Sanctuary",
         reply_markup=get_language_menu(),
         parse_mode="HTML"
     )
