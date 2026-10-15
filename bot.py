@@ -62,7 +62,6 @@ def get_pagination_kb(lang: str, current_idx: int, start_time: float, target_dur
     buttons = []
     nav_row = []
     
-    # Explicit pagination string actions to completely bypass copy/paste stripping bugs
     if current_idx > 0:
         prev_num = current_idx - 1
         nav_row.append(InlineKeyboardButton(text="← Back", callback_data=f"move_{lang}_{prev_num}"))
@@ -100,7 +99,6 @@ async def cmd_start(message: Message) -> None:
 
 @dp.callback_query(F.data.startswith("start_"))
 async def start_aof_handler(call: CallbackQuery) -> None:
-    # Explicit language text identification path rule mapping
     lang = "pidgin" if "pidgin_aof" in call.data else "en"
     config = TRACK_CONFIGS.get(lang, {"msg_id": 6, "duration": 240})
     
@@ -132,10 +130,7 @@ async def start_aof_handler(call: CallbackQuery) -> None:
 
 @dp.callback_query(F.data.startswith("move_"))
 async def page_turn_handler(call: CallbackQuery) -> None:
-    # FIXED: Extract data elements purely by explicit string matching rules
     lang = "pidgin" if "move_pidgin_" in call.data else "en"
-    
-    # Clean string slice technique to pull the single index character out safely
     idx_str = call.data.replace("move_en_", "").replace("move_pidgin_", "")
     current_idx = int(idx_str)
     user_id = call.from_user.id
@@ -200,3 +195,12 @@ async def confirm_completion_handler(call: CallbackQuery) -> None:
         
     await call.message.answer(
         "<b>🎉 Onboarding Anthem Complete</b>\n\n"
+        "Your playback verification has passed the structural threshold cleanly. Standing by for instructions.",
+        parse_mode="HTML"
+    )
+
+async def handle_ping(request):
+    return web.Response(text="Sanctuary Core Active", status=200)
+
+async def main() -> None:
+    app = web.Application()
