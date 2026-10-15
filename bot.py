@@ -174,15 +174,16 @@ async def library_replay_handler(message: Message) -> None:
         await message.answer("🔒 Sanctuary Library access requires completing initial onboarding verification first via /start.")
         return
         
+    user_chat_id = message.from_user.id
     await message.answer("Transferring full anthem assets pack directly into your personal Telegram Saved Messages archive container...")
     
-    try:
-        for lang in CONFIGS:
-            cfg = CONFIGS[lang]
-            await bot.copy_message(chat_id=message.from_user.id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"])
-            
-        lyrics_archive_text = (
-            "<b>📥 Archived Sanctuary Anthem Lyrics (English & Pidgin Assets)</b>\n\n"
-            "Find the full textual reference charters for your saved media files below for your personal replay library records."
-        )
-        await bot.send_message(chat_id=message.from_user.id, text=lyrics_archive_text, parse_mode="HTML")
+    # FIXED: Fully flattened block without try/except nesting structures to prevent syntax exceptions
+    for lang in CONFIGS:
+        cfg = CONFIGS[lang]
+        await bot.copy_message(chat_id=user_chat_id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"])
+        
+    lyrics_archive_text = (
+        "<b>📥 Archived Sanctuary Anthem Lyrics (English & Pidgin Assets)</b>\n\n"
+        "Find the full textual reference charters for your saved media files below for your personal replay library records."
+    )
+    await bot.send_message(chat_id=user_chat_id, text=lyrics_archive_text, parse_mode="HTML")
