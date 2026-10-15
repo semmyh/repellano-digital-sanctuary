@@ -118,7 +118,6 @@ async def run_handler(call: CallbackQuery) -> None:
         "lyrics_id": None
     }
     
-    # FIXED: Direct variable mapping to cleanly bypass logic branch line limits
     txt = EN_LYRICS if lang == "en" else PIDGIN_LYRICS
         
     l_msg = await call.message.answer(txt, reply_markup=get_verify_kb(lang, start_timestamp, cfg["duration"]), parse_mode="HTML")
@@ -184,12 +183,11 @@ async def library_replay_handler(message: Message) -> None:
     
     try:
         await bot.copy_message(chat_id=user_id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"])
-        
         archive_txt = EN_LYRICS if chosen_lang == "en" else PIDGIN_LYRICS
-            
         await bot.send_message(chat_id=user_id, text=archive_txt, parse_mode="HTML")
         await notice_msg.edit_text("✅ Success! Your selected Anthem version track file plus matching lyrics text have been successfully forwarded out to your personal Telegram Saved Messages folder. Your main workspace remains pristine.")
     except Exception as e:
+        # FIXED: Indented block added right here to fulfill strict Python block alignment logic
         await notice_msg.edit_text(f"⚠️ Archive transfer failed: {e}")
 
 async def handle_ping(request):
