@@ -164,7 +164,6 @@ async def library_replay_handler(message: Message) -> None:
     try:
         await bot.copy_message(chat_id=user_id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"])
         
-        # FIXED: Removed all multiple lines and brackets to create an unbreakable text layout string variable
         if chosen_lang == "en":
             archive_txt = "<b>📥 Archived Sanctuary Anthem (English)</b>\n\n<b>[Intro]</b>\nWelcome to the Sanctuary.\nWhere the chaotic markets find their perfect peace.\nThis is SemLeno's Repellano Digital Sanctuary.\n\n<b>[Verse 1]</b>\nThe global markets spin in a wild, endless race\nComplex forex trading moving at a blinding pace\nBut inside the Sanctuary, the vision is crystal clear\nWe strip away the chaos, we break down the fear\nTurning heavy burdens into a simple tool for all."
         else:
