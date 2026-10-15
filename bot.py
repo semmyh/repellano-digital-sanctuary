@@ -28,7 +28,7 @@ CONFIGS = {
 USER_SESSIONS = {}
 VERIFIED_USERS = set() # Tracks verified users for library replay permissions
 
-# FIXED: Exact text label button matching your preference precisely
+# Exact text label button matching your preference precisely
 def get_library_reply_kb() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
@@ -53,8 +53,12 @@ def get_verify_kb(lang: str, start_time: float, duration: int) -> InlineKeyboard
         ])
     else:
         rem = int(duration - elapsed)
+        # FIXED: Your exact preferred button layout text instruction with dynamic timer mapping
         return InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=f"🔒 Listen Fully to Unlock ({rem}s)", callback_data="timer_lock")]
+            [InlineKeyboardButton(
+                text=f"🔒 Click Play Button Above to Listen Fully [{rem}s] & Return to Click Here to Unlock Sanctuary", 
+                callback_data="timer_lock"
+            )]
         ])
 
 @dp.message(CommandStart())
@@ -129,6 +133,8 @@ async def timer_lock_handler(call: CallbackQuery) -> None:
         await call.message.edit_reply_markup(reply_markup=get_verify_kb(session["lang"], session["start"], cfg["duration"]))
         await call.answer("✨ Playback Complete! Confirm below.", show_alert=True)
     else:
+        # FIXED: Updates button dynamically on click with your exact phrasing choice
+        await call.message.edit_reply_markup(reply_markup=get_verify_kb(session["lang"], session["start"], cfg["duration"]))
         rem = int(cfg["duration"] - elapsed)
         await call.answer(f"🔒 Anthem is still processing. Please listen fully. ({rem}s remaining)", show_alert=True)
 
@@ -148,7 +154,6 @@ async def secure_clear_handler(call: CallbackQuery) -> None:
             pass
         USER_SESSIONS.pop(call.from_user.id, None)
     
-    # FIXED: The keyboard button ONLY appears here on the screen AFTER the files are safely deleted!
     await call.message.answer(
         "<b>🎉 Onboarding Anthem Complete</b>\n\n"
         "Your listening verification has been processed seamlessly. You can re-play the anthem anytime using the tab button below.", 
@@ -165,7 +170,6 @@ async def library_replay_handler(message: Message) -> None:
         
     await message.answer("Delivering the complete Sanctuary Anthem pack files directly to your personal archive...", reply_markup=get_library_reply_kb())
     
-    # Natively push both versions straight into their private logs for zero database lag
     for lang, cfg in CONFIGS.items():
         await bot.copy_message(chat_id=message.from_user.id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"])
         
@@ -186,4 +190,3 @@ async def main() -> None:
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    asyncio.run(main())
