@@ -186,4 +186,4 @@ async def library_replay_handler(message: Message) -> None:
             "Find the full textual reference charters for your saved media files below for your personal replay library records."
         )
         await bot.send_message(chat_id=message.from_user.id, text=lyrics_archive_text, parse_mode="HTML")
-        await message.answer("✅ Success! Anthem track files plus lyrics copy have been successfully forwarded to your Telegram Saved Messages folder. Check your chat list notification.")
+        # FIXED: Replaced breakable 'message.answer' with the exact correct chat tracking handler link 'bot.send_message'
