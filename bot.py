@@ -7,9 +7,9 @@ from aiogram.types import (
     Message, 
     CallbackQuery,
     InlineKeyboardMarkup, 
-    InlineKeyboardButton, 
-    MenuButtonWebApp, 
-    WebAppInfo
+    InlineKeyboardButton,
+    ReplyKeyboardMarkup,
+    KeyboardButton
 )
 from aiohttp import web
 
@@ -17,16 +17,25 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "8642428323:AAEe_3Hn-fQ-VHmcKMTdfXBIiC43b-lBG
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-BASE_URL = "https://vercel.app"
 CHANNEL_ID = "@RDSTracks"
 
-# Safe static configuration constants tracking your exact file length timelines
+# Asset configurations tracking your exact file length timelines
 CONFIGS = {
     "en": {"msg_id": 6, "duration": 240, "title": "English"},
-    "pidgin": {"msg_id": 7, "duration": 225, "title": "Pidgin"}
+    "pidgin": {"msg_id": 15, "duration": 234, "title": "Pidgin"} # 03:54 -> 234 seconds lock
 }
 
 USER_SESSIONS = {}
+VERIFIED_USERS = set() # Tracks verified users for library replay permissions
+
+# FIXED: Exact text label button matching your preference precisely
+def get_library_reply_kb() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🎵 Copy Anthem to Replay")]
+        ],
+        resize_keyboard=True
+    )
 
 def get_language_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
@@ -45,18 +54,18 @@ def get_verify_kb(lang: str, start_time: float, duration: int) -> InlineKeyboard
     else:
         rem = int(duration - elapsed)
         return InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=f"🔒 Click Play Button & Listen Fully to Unlock ({rem}s)", callback_data="timer_lock")]
+            [InlineKeyboardButton(text=f"🔒 Listen Fully to Unlock ({rem}s)", callback_data="timer_lock")]
         ])
 
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     user_name = message.from_user.first_name
-    await bot.set_chat_menu_button(
-        chat_id=message.chat.id,
-        menu_button=MenuButtonWebApp(text="🛡️ Sanctuary Gate", web_app=WebAppInfo(url=BASE_URL))
-    )
+    
+    # Strip out the old persistent WebApp menu configuration entirely
+    await bot.set_chat_menu_button(chat_id=message.chat.id)
+    
     await message.answer(
-        f"Welcome, Dear {user_name}! To begin, take the first step. Choose your language version below to listen to our Onboarding Anthem and have your first feel of the Sanctuary",
+        f"Welcome, Dear {user_name}! To begin, take the first step. Choose your language version below to enjoy the Sanctuary's Anthem",
         reply_markup=get_language_menu(),
         parse_mode="HTML"
     )
@@ -73,9 +82,11 @@ async def run_handler(call: CallbackQuery) -> None:
         message_id=cfg["msg_id"]
     )
     
+    start_timestamp = time.time()
+    
     USER_SESSIONS[call.from_user.id] = {
         "lang": lang,
-        "start": time.time(),
+        "start": start_timestamp,
         "audio_id": audio_msg.message_id,
         "lyrics_id": None
     }
@@ -95,15 +106,15 @@ async def run_handler(call: CallbackQuery) -> None:
         txt = (
             "<b>📜 Repellano Anthem (Pidgin Lyrics)</b>\n\n"
             "<b>[Intro]</b>\nWelcome to the Sanctuary.\nWhere jaga jaga forex markets find their perfect peace.\nThis na Semleno Repellano Digital Sanctuary.\n\n"
-            "<b>[Verse 1]</b>\nThe world market dey spin anyhow, e no dey stop\nForex trading sharp well-well, things just dey pop\nBut inside this Sanctuary, the vision clear pass glass\nWe dey commot the confusion, make the fear join pass\nWe dey change heavy loaduu, to simple tool for everybody.\n\n"
-            "<b>[Chorus]</b>\nE simple. E dey run on own. E dey for everyone.\nThirty-five FSSOs, the tech don change the run!\nPower dey for everybody, no matter where you start from\nRepellano oh, oh, oh, every single heart!\nEvery single heart!\nEvery single heart!\nEvery single heart!\n\n"
+            "<b>[Verse 1]</b>\nThe world market dey spin anyhow, e no dey stop\nForex trading sharp well-well, things just dey pop\nBut inside this Sanctuary, the vision clear pass glass\nWe dey commot the confusion, make the fear join pass\nWe dey change heavy lodu simple tool for everybody.\n\n"
+            "<b>[Chorus]</b>\nE simple. E dey run on own. E dey for everyone.\nThirty-five FSSOs, the tech don change the run!\nPower dey for everybody, no matter where you start from\nRepellano oh, oh, oh every single heart!\nEvery single heart\nEvery single heart\nEvery single heart\n\n"
             "<b>[Verse 2]</b>\nThe whole setup dey here to change how things suppose to be\nWhere math and market jam, things arrange properly\nThe system solid well-well, e smooth and e deep\nE dey work sharp-sharp inside silence when the world dey sleep.\n\n"
             "<b>[Verse 3]</b>\nThirty-five FSSOs stand gidigba, everything set well\nFinancial Support Service Offerings, na him we call FSSOs\nAutomated tools wey no dey tire or lose face\nTo support everybody wey dey struggle hard to find small money\n\n"
-            "<b>[Chorus]</b>\nSimple. Automated. Universal.\nThirty-five FSSOs, the tech reversal!\nUniversal empowerment, no matter where you start\nRepellano lifting all, all, all, all, every single heart!\nEvery single heart!\nEvery single heart!\n\n"
-            "<b>[Outro]</b>\nThe Digital Sanctuary.\nWe build, we automate, we rise.\n[Fade Out] [End]"
+            "<b>[Chorus]</b>\nSimple. Automated. Universal.\nThirty-five FSSOs, the tech reversal!\nFinancial power for you, no matter where you start\nRepellano oh, oh, oh every single heart!\nEvery single heart\nEvery single heart\n\n"
+            "<b>[Outro]</b>\nThe Digital Sanctuary.\nWe don build, we don automate, we wan rise.\n[Fade Out][End]"
         )
         
-    l_msg = await call.message.answer(txt, reply_markup=get_verify_kb(lang, time.time(), cfg["duration"]), parse_mode="HTML")
+    l_msg = await call.message.answer(txt, reply_markup=get_verify_kb(lang, start_timestamp, cfg["duration"]), parse_mode="HTML")
     USER_SESSIONS[call.from_user.id]["lyrics_id"] = l_msg.message_id
 
 @dp.callback_query(F.data == "timer_lock")
@@ -124,7 +135,11 @@ async def timer_lock_handler(call: CallbackQuery) -> None:
 @dp.callback_query(F.data == "secure_clear")
 async def secure_clear_handler(call: CallbackQuery) -> None:
     session = USER_SESSIONS.get(call.from_user.id)
-    await call.answer("Initial Onboarding Step Completed.")
+    await call.answer("Alignment Confirmed.")
+    
+    # Grant permanent verification access badge key
+    VERIFIED_USERS.add(call.from_user.id)
+    
     if session:
         try:
             await bot.delete_message(chat_id=call.from_user.id, message_id=session["audio_id"])
@@ -133,8 +148,28 @@ async def secure_clear_handler(call: CallbackQuery) -> None:
             pass
         USER_SESSIONS.pop(call.from_user.id, None)
     
-    # Phase 1 complete anchor threshold view
-    await call.message.answer("<b>🎉 Onboarding Anthem Complete</b>\n\nYour listening verification has been processed seamlessly. Standing by.", parse_mode="HTML")
+    # FIXED: The keyboard button ONLY appears here on the screen AFTER the files are safely deleted!
+    await call.message.answer(
+        "<b>🎉 Onboarding Anthem Complete</b>\n\n"
+        "Your listening verification has been processed seamlessly. You can re-play the anthem anytime using the tab button below.", 
+        reply_markup=get_library_reply_kb(),
+        parse_mode="HTML"
+    )
+
+# Persistent Replay Library Processing Routine
+@dp.message(F.text == "🎵 Copy Anthem to Replay")
+async def library_replay_handler(message: Message) -> None:
+    if message.from_user.id not in VERIFIED_USERS:
+        await message.answer("🔒 Sanctuary Library access requires completing initial onboarding verification first via /start.")
+        return
+        
+    await message.answer("Delivering the complete Sanctuary Anthem pack files directly to your personal archive...", reply_markup=get_library_reply_kb())
+    
+    # Natively push both versions straight into their private logs for zero database lag
+    for lang, cfg in CONFIGS.items():
+        await bot.copy_message(chat_id=message.from_user.id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"])
+        
+    await message.answer("The full English and Pidgin lyrics charters have been safely delivered to your personal account.")
 
 async def handle_ping(request):
     return web.Response(text="Sanctuary Core Active", status=200)
