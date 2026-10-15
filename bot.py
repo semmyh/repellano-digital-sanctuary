@@ -124,7 +124,7 @@ async def timer_lock_handler(call: CallbackQuery) -> None:
 @dp.callback_query(F.data == "secure_clear")
 async def secure_clear_handler(call: CallbackQuery) -> None:
     session = USER_SESSIONS.get(call.from_user.id)
-    await call.answer("Alignment Confirmed.")
+    await call.answer("Initial Onboarding Step Completed.")
     if session:
         try:
             await bot.delete_message(chat_id=call.from_user.id, message_id=session["audio_id"])
