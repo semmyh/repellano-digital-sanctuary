@@ -123,8 +123,6 @@ async def run_handler(call: CallbackQuery) -> None:
         )
         
     l_msg = await call.message.answer(txt, reply_markup=get_verify_kb(lang, start_timestamp, cfg["duration"]), parse_mode="HTML")
-    
-    # FIXED: This line now processes outside the if/else split to guarantee BOTH versions link their IDs cleanly
     USER_SESSIONS[call.from_user.id]["lyrics_id"] = l_msg.message_id
 
 @dp.callback_query(F.data == "instruction_only")
@@ -170,7 +168,6 @@ async def secure_clear_handler(call: CallbackQuery) -> None:
         parse_mode="HTML"
     )
 
-# Persistent Replay Library Processing Routine
 @dp.message(F.text == "🎵 Copy Anthem to Replay")
 async def library_replay_handler(message: Message) -> None:
     if message.from_user.id not in VERIFIED_USERS:
@@ -189,3 +186,5 @@ async def library_replay_handler(message: Message) -> None:
         )
         await bot.send_message(chat_id=message.from_user.id, text=lyrics_archive_text, parse_mode="HTML")
         
+        await message.answer("✅ Success! Anthem track files plus lyrics copy have been successfully forwarded to your Telegram Saved Messages folder. Check your chat list notification.")
+    except Exception as e:
