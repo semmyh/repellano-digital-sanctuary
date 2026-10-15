@@ -22,11 +22,11 @@ CHANNEL_ID = "@RDSTracks"
 # Asset configurations tracking your exact file length timelines
 CONFIGS = {
     "en": {"msg_id": 6, "duration": 240, "title": "English"},
-    "pidgin": {"msg_id": 15, "duration": 234, "title": "Pidgin"} # 03:54 -> 234 seconds lock
+    "pidgin": {"msg_id": 15, "duration": 234, "title": "Pidgin"}
 }
 
 USER_SESSIONS = {}
-VERIFIED_USERS = set() # Tracks verified users for library replay permissions
+VERIFIED_USERS = set()
 
 # Exact text label button matching your preference precisely
 def get_library_reply_kb() -> ReplyKeyboardMarkup:
@@ -53,7 +53,6 @@ def get_verify_kb(lang: str, start_time: float, duration: int) -> InlineKeyboard
         ])
     else:
         rem = int(duration - elapsed)
-        # FIXED: Your exact preferred button layout text instruction with dynamic timer mapping
         return InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(
                 text=f"🔒 Click Play Button Above to Listen Fully [{rem}s] & Return to Click Here to Unlock Sanctuary", 
@@ -64,10 +63,7 @@ def get_verify_kb(lang: str, start_time: float, duration: int) -> InlineKeyboard
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     user_name = message.from_user.first_name
-    
-    # Strip out the old persistent WebApp menu configuration entirely
     await bot.set_chat_menu_button(chat_id=message.chat.id)
-    
     await message.answer(
         f"Welcome, Dear {user_name}! To begin, take the first step. Choose your language version below to enjoy the Sanctuary's Anthem",
         reply_markup=get_language_menu(),
@@ -133,7 +129,6 @@ async def timer_lock_handler(call: CallbackQuery) -> None:
         await call.message.edit_reply_markup(reply_markup=get_verify_kb(session["lang"], session["start"], cfg["duration"]))
         await call.answer("✨ Playback Complete! Confirm below.", show_alert=True)
     else:
-        # FIXED: Updates button dynamically on click with your exact phrasing choice
         await call.message.edit_reply_markup(reply_markup=get_verify_kb(session["lang"], session["start"], cfg["duration"]))
         rem = int(cfg["duration"] - elapsed)
         await call.answer(f"🔒 Anthem is still processing. Please listen fully. ({rem}s remaining)", show_alert=True)
@@ -143,7 +138,6 @@ async def secure_clear_handler(call: CallbackQuery) -> None:
     session = USER_SESSIONS.get(call.from_user.id)
     await call.answer("Alignment Confirmed.")
     
-    # Grant permanent verification access badge key
     VERIFIED_USERS.add(call.from_user.id)
     
     if session:
@@ -161,7 +155,6 @@ async def secure_clear_handler(call: CallbackQuery) -> None:
         parse_mode="HTML"
     )
 
-# Persistent Replay Library Processing Routine
 @dp.message(F.text == "🎵 Copy Anthem to Replay")
 async def library_replay_handler(message: Message) -> None:
     if message.from_user.id not in VERIFIED_USERS:
@@ -190,3 +183,4 @@ async def main() -> None:
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
+    asyncio.run(main())
