@@ -20,32 +20,10 @@ dp = Dispatcher()
 BASE_URL = "https://vercel.app"
 CHANNEL_ID = "@RDSTracks"
 
-# 1. Enforced Time Lock Settings (Calculated from your Track Lengths)
-TRACK_CONFIGS = {
-    "en": {"msg_id": 6, "duration": 240, "name": "English"},   # 03:60 -> 4 minutes flat
-    "pidgin": {"msg_id": 7, "duration": 225, "name": "Pidgin"} # 03:45 -> 3 mins 45 secs
-}
-
-# 2. Complete 7-Block Lyrical Core Blueprint
-ANTHEM_LYRICS = {
-    "en": {
-        "0": "<b>[1/7] Intro</b>\n\n(Atmospheric tech synths open, steady afrobeat kicks in)\nWelcome to the Sanctuary.\nWhere the chaotic markets find their perfect peace.\nThis is SemLeno's Repellano Digital Sanctuary.",
-        "1": "<b>[2/7] Verse 1</b>\n\nThe global markets spin in a wild, endless race\nComplex forex trading moving at a blinding pace\nBut inside the Sanctuary, the vision is crystal clear\nWe strip away the chaos, we break down the fear\nTurning heavy burdens into a simple tool for all.",
-        "2": "<b>[3/7] Chorus</b>\n\nSimple. Automated. Universal.\nThirty-five FSSOs, the tech reversal!\nUniversal empowerment, no matter where you start\nRepellano lifting up, up, up, up, every single heart!\nEvery single heart!\nEvery single heart",
-        "3": "<b>[4/7] Verse 2</b>\n\nAn ecosystem built to redefine the grand design\nWhere mathematics meets the market, aligning line by line\nA seamless architecture, steady, smooth, and deep\nWorking in the silence while the world is fast asleep.",
-        "4": "<b>[5/7] Verse 3</b>\n\nThirty-five FSSOs standing structured and strong\nFinancial Support Service Offerings where they belong\nAutomated utilities that never tire or fade\nTo help all those struggling with their finances",
-        "5": "<b>[6/7] Chorus</b>\n\nSimple. Automated. Universal.\nThirty-five FSSOs, the tech reversal!\nUniversal empowerment, no matter where you start\nRepellano lifting up, up, up, up, every single heart!\nEvery single heart!\nEvery single heart!",
-        "6": "<b>[7/7] Outro</b>\n\nThe Digital Sanctuary.\nWe build, we automate, we rise.\n[Fade Out] [End]"
-    },
-    "pidgin": {
-        "0": "<b>[1/7] Intro</b>\n\nWelcome to the Sanctuary.\nWhere jaga jaga forex markets find their perfect peace.\nThis na Semleno Repellano Digital Sanctuary.",
-        "1": "<b>[2/7] Verse 1</b>\n\nThe world market dey spin anyhow, e no dey stop\nForex trading sharp well-well, things just dey pop\nBut inside this Sanctuary, the vision clear pass glass\nWe dey commot the confusion, make the fear join pass\nWe dey change heavy loaduu, to simple tool for everybody.",
-        "2": "<b>[3/7] Chorus</b>\n\nE simple. E dey run on own. E dey for everyone.\nThirty-five FSSOs, the tech don change the run!\nPower dey for everybody, no matter where you start from\nRepellano oh, oh, oh, every single heart!\nEvery single heart!\nEvery single heart!\nEvery single heart!",
-        "3": "<b>[4/7] Verse 2</b>\n\nThe whole setup dey here to change how things suppose to be\nWhere math and market jam, things arrange properly\nThe system solid well-well, e smooth and e deep\nE dey work sharp-sharp inside silence when the world dey sleep.",
-        "4": "<b>[5/7] Verse 3</b>\n\nThirty-five FSSOs stand gidigba, everything set well\nFinancial Support Service Offerings, na him we call FSSOs\nAutomated tools wey no dey tire or lose face\nTo support everybody wey dey struggle hard to find small money",
-        "5": "<b>[6/7] Chorus</b>\n\nSimple. Automated. Universal.\nThirty-five FSSOs, the tech reversal!\nUniversal empowerment, no matter where you start\nRepellano lifting all, all, all, all, every single heart!\nEvery single heart!\nEvery single heart!",
-        "6": "<b>[7/7] Outro</b>\n\nThe Digital Sanctuary.\nWe build, we automate, we rise.\n[Fade Out] [End]"
-    }
+# Safe static configuration constants tracking your exact file length timelines
+CONFIGS = {
+    "en": {"msg_id": 6, "duration": 240, "title": "English"},
+    "pidgin": {"msg_id": 7, "duration": 225, "title": "Pidgin"}
 }
 
 USER_SESSIONS = {}
@@ -53,154 +31,124 @@ USER_SESSIONS = {}
 def get_language_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🎧 English Version", callback_data="start_en_aof")],
-            [InlineKeyboardButton(text="🎧 Pidgin Version", callback_data="start_pidgin_aof")]
+            [InlineKeyboardButton(text="🎧 English Version", callback_data="run_en")],
+            [InlineKeyboardButton(text="🎧 Pidgin Version", callback_data="run_pidgin")]
         ]
     )
 
-def get_pagination_kb(lang: str, current_idx: int, start_time: float, target_duration: int) -> InlineKeyboardMarkup:
-    buttons = []
-    nav_row = []
-    
-    if current_idx > 0:
-        prev_num = current_idx - 1
-        nav_row.append(InlineKeyboardButton(text="← Back", callback_data=f"move_{lang}_{prev_num}"))
-    if current_idx < 6:
-        next_num = current_idx + 1
-        nav_row.append(InlineKeyboardButton(text="Next Section ➔", callback_data=f"move_{lang}_{next_num}"))
-        
-    if nav_row:
-        buttons.append(nav_row)
-        
-    if current_idx == 6:
-        elapsed = time.time() - start_time
-        if elapsed >= target_duration:
-            buttons.append([InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_data="confirm_completion")])
-        else:
-            remaining = int(target_duration - elapsed)
-            buttons.append([InlineKeyboardButton(text=f"🔒 Listen Fully to Unlock ({remaining}s)", callback_data="check_timer")])
-            
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+def get_verify_kb(lang: str, start_time: float, duration: int) -> InlineKeyboardMarkup:
+    elapsed = time.time() - start_time
+    if elapsed >= duration:
+        return InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_data="secure_clear")]
+        ])
+    else:
+        rem = int(duration - elapsed)
+        return InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=f"🔒 Listen Fully to Unlock ({rem}s)", callback_data="timer_lock")]
+        ])
 
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     user_name = message.from_user.first_name
-    
     await bot.set_chat_menu_button(
         chat_id=message.chat.id,
         menu_button=MenuButtonWebApp(text="🛡️ Sanctuary Gate", web_app=WebAppInfo(url=BASE_URL))
     )
-    
     await message.answer(
         f"Welcome, Dear {user_name}! To begin, take the first step. Choose your language version below to enjoy the Sanctuary's Anthem",
         reply_markup=get_language_menu(),
         parse_mode="HTML"
     )
 
-@dp.callback_query(F.data.startswith("start_"))
-async def start_aof_handler(call: CallbackQuery) -> None:
-    lang = "pidgin" if "pidgin_aof" in call.data else "en"
-    config = TRACK_CONFIGS.get(lang, {"msg_id": 6, "duration": 240})
-    
-    await call.answer("Deploying Anthem Core...")
+@dp.callback_query(F.data.startswith("run_"))
+async def run_handler(call: CallbackQuery) -> None:
+    lang = call.data.replace("run_", "")
+    cfg = CONFIGS.get(lang)
+    await call.answer("Accessing Sanctuary Anthem Assets...")
     
     audio_msg = await bot.copy_message(
         chat_id=call.from_user.id,
         from_chat_id=CHANNEL_ID,
-        message_id=config["msg_id"]
+        message_id=cfg["msg_id"]
     )
     
     USER_SESSIONS[call.from_user.id] = {
         "lang": lang,
-        "start_time": time.time(),
-        "audio_msg_id": audio_msg.message_id,
-        "lyrics_msg_id": None
+        "start": time.time(),
+        "audio_id": audio_msg.message_id,
+        "lyrics_id": None
     }
     
-    lyrics_pool = ANTHEM_LYRICS.get(lang, {})
-    first_slide = lyrics_pool.get("0", "Lyrics initialization error...")
-    
-    lyrics_msg = await call.message.answer(
-        first_slide,
-        reply_markup=get_pagination_kb(lang, 0, time.time(), config["duration"]),
-        parse_mode="HTML"
-    )
-    
-    USER_SESSIONS[call.from_user.id]["lyrics_msg_id"] = lyrics_msg.message_id
-
-@dp.callback_query(F.data.startswith("move_"))
-async def page_turn_handler(call: CallbackQuery) -> None:
-    lang = "pidgin" if "move_pidgin_" in call.data else "en"
-    idx_str = call.data.replace("move_en_", "").replace("move_pidgin_", "")
-    current_idx = int(idx_str)
-    user_id = call.from_user.id
-    
-    session = USER_SESSIONS.get(user_id)
-    if not session:
-        await call.answer("Session expired. Please restart with /start.", show_alert=True)
-        return
-        
-    config = TRACK_CONFIGS.get(lang, {"msg_id": 6, "duration": 240})
-    
-    lyrics_pool = ANTHEM_LYRICS.get(lang, {})
-    target_slide = lyrics_pool.get(str(current_idx), "Lyrics alignment error...")
-    
-    await call.message.edit_text(
-        target_slide,
-        reply_markup=get_pagination_kb(lang, current_idx, session["start_time"], config["duration"]),
-        parse_mode="HTML"
-    )
-    await call.answer()
-
-@dp.callback_query(F.data == "check_timer")
-async def check_timer_handler(call: CallbackQuery) -> None:
-    user_id = call.from_user.id
-    session = USER_SESSIONS.get(user_id)
-    if not session:
-        return
-        
-    lang = session["lang"]
-    config = TRACK_CONFIGS.get(lang, {"msg_id": 6, "duration": 240})
-    elapsed = time.time() - session["start_time"]
-    
-    if elapsed >= config["duration"]:
-        lyrics_pool = ANTHEM_LYRICS.get(lang, {})
-        final_slide = lyrics_pool.get("6", "Lyrics completion error...")
-        
-        await call.message.edit_text(
-            final_slide,
-            reply_markup=get_pagination_kb(lang, 6, session["start_time"], config["duration"]),
-            parse_mode="HTML"
+    if lang == "en":
+        txt = (
+            "<b>📜 Repellano Anthem (English Lyrics)</b>\n\n"
+            "<b>[Intro]</b>\nWelcome to the Sanctuary.\nWhere the chaotic markets find their perfect peace.\nThis is SemLeno's Repellano Digital Sanctuary.\n\n"
+            "<b>[Verse 1]</b>\nThe global markets spin in a wild, endless race\nComplex forex trading moving at a blinding pace\nBut inside the Sanctuary, the vision is crystal clear\nWe strip away the chaos, we break down the fear\nTurning heavy burdens into a simple tool for all.\n\n"
+            "<b>[Chorus]</b>\nSimple. Automated. Universal.\nThirty-five FSSOs, the tech reversal!\nUniversal empowerment, no matter where you start\nRepellano lifting up, up, up, up, every single heart!\nEvery single heart!\nEvery single heart\n\n"
+            "<b>[Verse 2]</b>\nAn ecosystem built to redefine the grand design\nWhere mathematics meets the market, aligning line by line\nA seamless architecture, steady, smooth, and deep\nWorking in the silence while the world is fast asleep.\n\n"
+            "<b>[Verse 3]</b>\nThirty-five FSSOs standing structured and strong\nFinancial Support Service Offerings where they belong\nAutomated utilities that never tire or fade\nTo help all those struggling with their finances\n\n"
+            "<b>[Chorus]</b>\nSimple. Automated. Universal.\nThirty-five FSSOs, the tech reversal!\nUniversal empowerment, no matter where you start\nRepellano lifting up, up, up, up, every single heart!\nEvery single heart!\nEvery single heart!\n\n"
+            "<b>[Outro]</b>\nThe Digital Sanctuary.\nWe build, we automate, we rise.\n[Fade Out] [End]"
         )
-        await call.answer("✨ Track Completed! Button Unlocked.")
     else:
-        remaining = int(config["duration"] - elapsed)
-        await call.answer(f"🔒 Keep absorbing the anthem. Only {remaining} seconds remaining.", show_alert=True)
+        txt = (
+            "<b>📜 Repellano Anthem (Pidgin Lyrics)</b>\n\n"
+            "<b>[Intro]</b>\nWelcome to the Sanctuary.\nWhere jaga jaga forex markets find their perfect peace.\nThis na Semleno Repellano Digital Sanctuary.\n\n"
+            "<b>[Verse 1]</b>\nThe world market dey spin anyhow, e no dey stop\nForex trading sharp well-well, things just dey pop\nBut inside this Sanctuary, the vision clear pass glass\nWe dey commot the confusion, make the fear join pass\nWe dey change heavy loaduu, to simple tool for everybody.\n\n"
+            "<b>[Chorus]</b>\nE simple. E dey run on own. E dey for everyone.\nThirty-five FSSOs, the tech don change the run!\nPower dey for everybody, no matter where you start from\nRepellano oh, oh, oh, every single heart!\nEvery single heart!\nEvery single heart!\nEvery single heart!\n\n"
+            "<b>[Verse 2]</b>\nThe whole setup dey here to change how things suppose to be\nWhere math and market jam, things arrange properly\nThe system solid well-well, e smooth and e deep\nE dey work sharp-sharp inside silence when the world dey sleep.\n\n"
+            "<b>[Verse 3]</b>\nThirty-five FSSOs stand gidigba, everything set well\nFinancial Support Service Offerings, na him we call FSSOs\nAutomated tools wey no dey tire or lose face\nTo support everybody wey dey struggle hard to find small money\n\n"
+            "<b>[Chorus]</b>\nSimple. Automated. Universal.\nThirty-five FSSOs, the tech reversal!\nUniversal empowerment, no matter where you start\nRepellano lifting all, all, all, all, every single heart!\nEvery single heart!\nEvery single heart!\n\n"
+            "<b>[Outro]</b>\nThe Digital Sanctuary.\nWe build, we automate, we rise.\n[Fade Out] [End]"
+        )
+        
+    l_msg = await call.message.answer(txt, reply_markup=get_verify_kb(lang, time.time(), cfg["duration"]), parse_mode="HTML")
+    USER_SESSIONS[call.from_user.id]["lyrics_id"] = l_msg.message_id
 
-@dp.callback_query(F.data == "confirm_completion")
-async def confirm_completion_handler(call: CallbackQuery) -> None:
-    user_id = call.from_user.id
-    session = USER_SESSIONS.get(user_id)
-    
-    await call.answer("Verification Confirmed.")
-    
+@dp.callback_query(F.data == "timer_lock")
+async def timer_lock_handler(call: CallbackQuery) -> None:
+    session = USER_SESSIONS.get(call.from_user.id)
+    if not session:
+        await call.answer("Session expired. Type /start to refresh.", show_alert=True)
+        return
+    cfg = CONFIGS.get(session["lang"])
+    elapsed = time.time() - session["start"]
+    if elapsed >= cfg["duration"]:
+        await call.message.edit_reply_markup(reply_markup=get_verify_kb(session["lang"], session["start"], cfg["duration"]))
+        await call.answer("✨ Playback Complete! Confirm below.", show_alert=True)
+    else:
+        rem = int(cfg["duration"] - elapsed)
+        await call.answer(f"🔒 Anthem is still processing. Please listen fully. ({rem}s remaining)", show_alert=True)
+
+@dp.callback_query(F.data == "secure_clear")
+async def secure_clear_handler(call: CallbackQuery) -> None:
+    session = USER_SESSIONS.get(call.from_user.id)
+    await call.answer("Alignment Confirmed.")
     if session:
         try:
-            await bot.delete_message(chat_id=user_id, message_id=session["audio_msg_id"])
-            await bot.delete_message(chat_id=user_id, message_id=session["lyrics_msg_id"])
+            await bot.delete_message(chat_id=call.from_user.id, message_id=session["audio_id"])
+            await bot.delete_message(chat_id=call.from_user.id, message_id=session["lyrics_id"])
         except Exception:
-            pass 
-            
-        USER_SESSIONS.pop(user_id, None)
-        
-    await call.message.answer(
-        "<b>🎉 Onboarding Anthem Complete</b>\n\n"
-        "Your playback verification has passed the structural threshold cleanly. Standing by for instructions.",
-        parse_mode="HTML"
-    )
+            pass
+        USER_SESSIONS.pop(call.from_user.id, None)
+    
+    # Phase 1 complete anchor threshold view
+    await call.message.answer("<b>🎉 Onboarding Anthem Complete</b>\n\nYour listening verification has been processed seamlessly. Standing by.", parse_mode="HTML")
 
 async def handle_ping(request):
     return web.Response(text="Sanctuary Core Active", status=200)
 
 async def main() -> None:
     app = web.Application()
+    app.router.add_get("/", handle_ping)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.getenv("PORT", 10000))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    await bot.delete_webhook(drop_pending_updates=True)
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
