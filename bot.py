@@ -28,7 +28,7 @@ CONFIGS = {
 USER_SESSIONS = {}
 VERIFIED_USERS = set()
 
-# Exact text label button matching your preference precisely
+# Descriptive, action-oriented replay tool button
 def get_library_reply_kb() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
@@ -49,11 +49,11 @@ def get_verify_kb(lang: str, start_time: float, duration: int) -> InlineKeyboard
     elapsed = time.time() - start_time
     if elapsed >= duration:
         return InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_data="secure_clear")]
+            [InlineKeyboardButton(text="🎧 Track Playback Complete", callback_data="instruction_only")],
+            [InlineKeyboardButton(text="✅ Return to Click Here to Unlock Sanctuary", callback_data="secure_clear")]
         ])
     else:
         rem = int(duration - elapsed)
-        # FIXED: Splitting the layout text cleanly into a stacked two-row matrix of inline buttons
         return InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(
                 text=f"🔒 Click Play Button Above to Listen Fully [{rem}s]", 
@@ -68,7 +68,10 @@ def get_verify_kb(lang: str, start_time: float, duration: int) -> InlineKeyboard
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     user_name = message.from_user.first_name
+    
+    # Forces persistent text removal and greys out the input frame button area
     await bot.set_chat_menu_button(chat_id=message.chat.id)
+    
     await message.answer(
         f"Welcome, Dear {user_name}! To begin, take the first step. Choose your language version below to enjoy the Sanctuary's Anthem",
         reply_markup=get_language_menu(),
@@ -120,7 +123,13 @@ async def run_handler(call: CallbackQuery) -> None:
         )
         
     l_msg = await call.message.answer(txt, reply_markup=get_verify_kb(lang, start_timestamp, cfg["duration"]), parse_mode="HTML")
+    
+    # FIXED: This line now processes outside the if/else split to guarantee BOTH versions link their IDs cleanly
     USER_SESSIONS[call.from_user.id]["lyrics_id"] = l_msg.message_id
+
+@dp.callback_query(F.data == "instruction_only")
+async def instruction_handler(call: CallbackQuery) -> None:
+    await call.answer("Track validation confirmed. Click the button below to unlock entry.", show_alert=True)
 
 @dp.callback_query(F.data == "timer_lock")
 async def timer_lock_handler(call: CallbackQuery) -> None:
@@ -130,18 +139,19 @@ async def timer_lock_handler(call: CallbackQuery) -> None:
         return
     cfg = CONFIGS.get(session["lang"])
     elapsed = time.time() - session["start"]
+    
+    await call.message.edit_reply_markup(reply_markup=get_verify_kb(session["lang"], session["start"], cfg["duration"]))
+    
     if elapsed >= cfg["duration"]:
-        await call.message.edit_reply_markup(reply_markup=get_verify_kb(session["lang"], session["start"], cfg["duration"]))
-        await call.answer("✨ Playback Complete! Confirm below.", show_alert=True)
+        await call.answer("✨ Playback Complete! Tap the bottom button to proceed.", show_alert=True)
     else:
-        await call.message.edit_reply_markup(reply_markup=get_verify_kb(session["lang"], session["start"], cfg["duration"]))
         rem = int(cfg["duration"] - elapsed)
-        await call.answer(f"🔒 Anthem is still processing. Please listen fully. ({rem}s remaining)", show_alert=True)
+        await call.answer(f"🔒 Playback processing. Please listen fully. ({rem}s remaining)", show_alert=True)
 
 @dp.callback_query(F.data == "secure_clear")
 async def secure_clear_handler(call: CallbackQuery) -> None:
     session = USER_SESSIONS.get(call.from_user.id)
-    await call.answer("Alignment Confirmed.")
+    await call.answer("Sanctuary Entrance Unlocked.")
     
     VERIFIED_USERS.add(call.from_user.id)
     
@@ -154,38 +164,28 @@ async def secure_clear_handler(call: CallbackQuery) -> None:
         USER_SESSIONS.pop(call.from_user.id, None)
     
     await call.message.answer(
-        "<b>🎉 Onboarding Anthem Complete</b>\n\n"
-        "Your listening verification has been processed seamlessly. You can re-play the anthem anytime using the tab button below.", 
+        "<b>Onboarding Anthem Complete</b>\n\n"
+        "Your listening verification has been processed seamlessly. Click here to proceed to a brief introduction to the Company (Repellano Nigeria Limited)", 
         reply_markup=get_library_reply_kb(),
         parse_mode="HTML"
     )
 
+# Persistent Replay Library Processing Routine
 @dp.message(F.text == "🎵 Copy Anthem to Replay")
 async def library_replay_handler(message: Message) -> None:
     if message.from_user.id not in VERIFIED_USERS:
         await message.answer("🔒 Sanctuary Library access requires completing initial onboarding verification first via /start.")
         return
         
-    await message.answer("Delivering the complete Sanctuary Anthem pack files directly to your personal archive...", reply_markup=get_library_reply_kb())
+    await message.answer("Transferring full anthem assets pack directly into your personal Telegram Saved Messages archive container...")
     
-    for lang, cfg in CONFIGS.items():
-        await bot.copy_message(chat_id=message.from_user.id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"])
+    try:
+        for lang, cfg in CONFIGS.items():
+            await bot.copy_message(chat_id=message.from_user.id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"])
+            
+        lyrics_archive_text = (
+            "<b>📥 Archived Sanctuary Anthem Lyrics (English & Pidgin Assets)</b>\n\n"
+            "Find the full textual reference charters for your saved media files below for your personal replay library records."
+        )
+        await bot.send_message(chat_id=message.from_user.id, text=lyrics_archive_text, parse_mode="HTML")
         
-    await message.answer("The full English and Pidgin lyrics charters have been safely delivered to your personal account.")
-
-async def handle_ping(request):
-    return web.Response(text="Sanctuary Core Active", status=200)
-
-async def main() -> None:
-    app = web.Application()
-    app.router.add_get("/", handle_ping)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    port = int(os.getenv("PORT", 10000))
-    site = web.TCPSite(runner, "0.0.0.0", port)
-    await site.start()
-    await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
-
-if __name__ == "__main__":
-    asyncio.run(main())
