@@ -45,7 +45,7 @@ def get_verify_kb(lang: str, start_time: float, duration: int) -> InlineKeyboard
     else:
         rem = int(duration - elapsed)
         return InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=f"🔒 Listen Fully to Unlock ({rem}s)", callback_data="timer_lock")]
+            [InlineKeyboardButton(text=f"🔒 Click Play Button & Listen Fully to Unlock ({rem}s)", callback_data="timer_lock")]
         ])
 
 @dp.message(CommandStart())
