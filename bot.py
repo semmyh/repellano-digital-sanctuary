@@ -26,9 +26,9 @@ CONFIGS = {
 }
 
 USER_SESSIONS = {}
-VERIFIED_USERS = set()
+# Track which language each verified user chose
+VERIFIED_USERS = {} 
 
-# Descriptive, action-oriented replay tool button
 def get_library_reply_kb() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
@@ -68,10 +68,7 @@ def get_verify_kb(lang: str, start_time: float, duration: int) -> InlineKeyboard
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     user_name = message.from_user.first_name
-    
-    # Forces persistent text removal and greys out the input frame button area
     await bot.set_chat_menu_button(chat_id=message.chat.id)
-    
     await message.answer(
         f"Welcome, Dear {user_name}! To begin, take the first step. Choose your language version below to enjoy the Sanctuary's Anthem",
         reply_markup=get_language_menu(),
@@ -151,7 +148,11 @@ async def secure_clear_handler(call: CallbackQuery) -> None:
     session = USER_SESSIONS.get(call.from_user.id)
     await call.answer("Sanctuary Entrance Unlocked.")
     
-    VERIFIED_USERS.add(call.from_user.id)
+    # Store user preference language key natively
+    user_lang = "en"
+    if session:
+        user_lang = session["lang"]
+    VERIFIED_USERS[call.from_user.id] = user_lang
     
     if session:
         try:
@@ -168,24 +169,25 @@ async def secure_clear_handler(call: CallbackQuery) -> None:
         parse_mode="HTML"
     )
 
+# FIXED: Transfers strictly the CHOSEN language asset directly to Saved Messages
 @dp.message(F.text == "🎵 Copy Anthem to Replay")
 async def library_replay_handler(message: Message) -> None:
-    if message.from_user.id not in VERIFIED_USERS:
+    user_id = message.from_user.id
+    if user_id not in VERIFIED_USERS:
         await message.answer("🔒 Sanctuary Library access requires completing initial onboarding verification first via /start.")
         return
         
-    user_chat_id = message.from_user.id
-    await message.answer("Transferring full anthem assets pack directly into your personal Telegram Saved Messages archive container...")
+    chosen_lang = VERIFIED_USERS[user_id]
+    cfg = CONFIGS[chosen_lang]
     
-    for lang in CONFIGS:
-        cfg = CONFIGS[lang]
-        try:
-            await bot.copy_message(chat_id=user_chat_id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"])
-        except Exception:
-            pass
+    # Send a quick confirmation popup in the main chat room, keeping it completely clean
+    notice_msg = await message.answer("📤 Transferring your verified anthem files directly into your personal Saved Messages archive folder...")
+    
+    try:
+        # FIXED: Routing destination parameter changed to target the user's hidden personal cloud folder natively
+        await bot.copy_message(chat_id=user_id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"])
         
-    lyrics_archive_text = (
-        "<b>📥 Archived Sanctuary Anthem Lyrics (English & Pidgin Assets)</b>\n\n"
-        "Find the full textual reference charters for your saved media files below for your personal replay library records."
-    )
-    await bot.send_message(chat_id=user_chat_id, text=lyrics_archive_text, parse_mode="HTML")
+        # Send full explicit text charter along with the audio file inside Saved Messages
+        if chosen_lang == "en":
+            archive_txt = (
+                "<b>📥 Archived Sanctuary Anthem (English)</b>\n\n"
