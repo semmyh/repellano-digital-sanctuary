@@ -53,9 +53,14 @@ def get_verify_kb(lang: str, start_time: float, duration: int) -> InlineKeyboard
         ])
     else:
         rem = int(duration - elapsed)
+        # FIXED: Splitting the layout text cleanly into a stacked two-row matrix of inline buttons
         return InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(
-                text=f"🔒 Click Play Button Above to Listen Fully [{rem}s] & Return to Click Here to Unlock Sanctuary", 
+                text=f"🔒 Click Play Button Above to Listen Fully [{rem}s]", 
+                callback_data="timer_lock"
+            )],
+            [InlineKeyboardButton(
+                text="🔒 Return to Click Here to Unlock Sanctuary", 
                 callback_data="timer_lock"
             )]
         ])
