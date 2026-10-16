@@ -31,7 +31,7 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-BOT_TOKEN = "PUT_YOUR_BOT_TOKEN_HERE"
+BOT_TOKEN = "8642428323:AAFbLCCpoZAn6N-BhgXsjIcEuo21tabg1Ag"
 
 # --- Config: swap the file paths for your real assets -------------------------
 TRACKS = {
