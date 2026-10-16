@@ -9,6 +9,7 @@ from aiogram.types import (
     InlineKeyboardMarkup, 
     InlineKeyboardButton
 )
+from aiohttp import web
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8642428323:AAEe_3Hn-fQ-VHmcKMTdfXBIiC43b-lBGc0")
 bot = Bot(token=BOT_TOKEN)
@@ -194,5 +195,5 @@ async def replay_handler(call: CallbackQuery) -> None:
             pass
         cfg = CONFIGS.get(lang)
         session["start"] = time.time()
+        markup = get_verify_kb(lang, session["start"], cfg["duration"])
         try:
-            markup = get_verify_kb(lang, session["start"], cfg["duration"])
