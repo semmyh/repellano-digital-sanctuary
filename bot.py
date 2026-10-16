@@ -188,7 +188,6 @@ async def replay_handler(call: CallbackQuery) -> None:
     session = USER_SESSIONS.get(user_id)
     await call.answer("Reloading Anthem Core...")
     
-    # FIXED: Completely removed the broken nested try block loops to ensure 100% flat formatting safety
     if session and session["lang"] == str(lang):
         try:
             await call.message.delete()
@@ -196,3 +195,5 @@ async def replay_handler(call: CallbackQuery) -> None:
             pass
         cfg = CONFIGS.get(lang)
         session["start"] = time.time()
+        markup = get_verify_kb(lang, session["start"], cfg["duration"])
+        try:
