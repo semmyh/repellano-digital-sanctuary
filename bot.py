@@ -11,6 +11,7 @@ from aiogram.types import (
 )
 from aiohttp import web
 
+# FIXED: Implemented your brand new bot token asset key to clear ghost sessions
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8642428323:AAH-41ptV9VSG9XCCAgDpnvQSVRcZiR_YyE")
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
@@ -188,7 +189,6 @@ async def replay_handler(call: CallbackQuery) -> None:
     session = USER_SESSIONS.get(user_id)
     await call.answer("Reloading Anthem Core...")
     
-    # FIXED: Completely stripped out all open try/except blocks to ensure flawless compilation alignment
     if session and session["lang"] == str(lang):
         try:
             await call.message.delete()
