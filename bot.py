@@ -17,7 +17,7 @@ dp = Dispatcher()
 
 CHANNEL_ID = "@RDSTracks"
 
-# Exact configuration arrays matching your requirements completely
+# Exact time locks and message IDs mapped out for synchronization
 CONFIGS = {
     "en": {"msg_id": 6, "duration": 240, "title": "English"},
     "pidgin": {"msg_id": 15, "duration": 234, "title": "Pidgin"}
@@ -60,12 +60,31 @@ def get_verify_kb(lang: str, start_time: float, duration: int) -> InlineKeyboard
     if elapsed >= duration:
         return InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🎧 Track Playback Complete", callback_data="instruction_only")],
-            [InlineKeyboardButton(text="✅ Return to Click Here to Unlock Sanctuary", callback_data="secure_clear")]
+            [InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_data="check_loop")]
         ])
     rem = int(duration - elapsed)
+    # FIXED: Re-positioned the play icon exactly according to your preferred phrasing
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"🔒 Click Play Button Above to Listen Fully [{rem}s]", callback_data="timer_lock")],
-        [InlineKeyboardButton(text="🔒 Return to Click Here to Unlock Sanctuary", callback_data="timer_lock")]
+        [InlineKeyboardButton(
+            text=f"First, Click Play Button ▶️ Above to Listen Fully [{rem}s]", 
+            callback_data="timer_lock"
+        )],
+        [InlineKeyboardButton(
+            text="🔒 Then, Return to Click Here and Unlock Sanctuary", 
+            callback_data="timer_lock"
+        )]
+    ])
+
+def get_listen_again_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Yes, Listen Again", callback_data="choice_yes")],
+        [InlineKeyboardButton(text="➡️ No, Proceed Forward", callback_data="choice_no")]
+    ])
+
+def get_replay_lang_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🎧 Replay English Version", callback_data="replay_en")],
+        [InlineKeyboardButton(text="🎧 Replay Pidgin Version", callback_data="replay_pidgin")]
     ])
 
 @dp.message(CommandStart())
@@ -78,27 +97,18 @@ async def cmd_start(message: Message) -> None:
         parse_mode="HTML"
     )
 
-@dp.callback_query(F.data.startswith("run_"))
-async def run_handler(call: CallbackQuery) -> None:
-    lang = call.data.replace("run_", "")
+async def deploy_anthem_assets(call: CallbackQuery, lang: str) -> None:
     cfg = CONFIGS.get(lang)
     user_id = call.from_user.id
     
-    # STEP 2: Instantly trigger your precise pop-up message notification onto their device screen
-    await call.answer(
-        text="Success! Your selected Anthem has been forwarded to your Saved Messages folder for a replay at anytime of your choice.",
-        show_alert=True
-    )
-    
-    # STEP 3 & 4: Automatically drop track plus lyrics into Saved Messages vault concurrently
-    try:
-        await bot.copy_message(chat_id=user_id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"])
-        archive_text = EN_LYRICS if lang == "en" else PIDGIN_LYRICS
-        await bot.send_message(chat_id=user_id, text=f"<b>📥 Saved Replay Asset Container</b>\n\n{archive_text}", parse_mode="HTML")
-    except Exception:
-        pass
-
-    # Load audio asset and tracking vectors into active chat window concurrently
+    old_session = USER_SESSIONS.get(user_id)
+    if old_session:
+        try:
+            await bot.delete_message(chat_id=user_id, message_id=old_session["audio_id"])
+            await bot.delete_message(chat_id=user_id, message_id=old_session["lyrics_id"])
+        except Exception:
+            pass
+            
     audio_msg = await bot.copy_message(chat_id=user_id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"])
     start_timestamp = time.time()
     
@@ -113,9 +123,15 @@ async def run_handler(call: CallbackQuery) -> None:
     l_msg = await call.message.answer(txt, reply_markup=get_verify_kb(lang, start_timestamp, cfg["duration"]), parse_mode="HTML")
     USER_SESSIONS[user_id]["lyrics_id"] = l_msg.message_id
 
+@dp.callback_query(F.data.startswith("run_"))
+async def run_handler(call: CallbackQuery) -> None:
+    lang = call.data.replace("run_", "")
+    await call.answer("Accessing Sanctuary Anthem Assets...")
+    await deploy_anthem_assets(call, lang)
+
 @dp.callback_query(F.data == "instruction_only")
 async def instruction_handler(call: CallbackQuery) -> None:
-    await call.answer("Track validation confirmed. Click the button below to unlock entry.", show_alert=True)
+    await call.answer("Track validation confirmed. Click the green button below to check your progress status.", show_alert=True)
 
 @dp.callback_query(F.data == "timer_lock")
 async def timer_lock_handler(call: CallbackQuery) -> None:
@@ -125,53 +141,58 @@ async def timer_lock_handler(call: CallbackQuery) -> None:
         return
     cfg = CONFIGS.get(session["lang"])
     elapsed = time.time() - session["start"]
+    
     await call.message.edit_reply_markup(reply_markup=get_verify_kb(session["lang"], session["start"], cfg["duration"]))
+    
     if elapsed >= cfg["duration"]:
-        await call.answer("✨ Playback Complete! Tap the bottom button to proceed.", show_alert=True)
+        await call.answer("✨ Playback Complete! Tap the green button to check progress status.", show_alert=True)
     else:
         rem = int(cfg["duration"] - elapsed)
         await call.answer(f"🔒 Playback processing. Please listen fully. ({rem}s remaining)", show_alert=True)
 
-@dp.callback_query(F.data == "secure_clear")
-async def secure_clear_handler(call: CallbackQuery) -> None:
+@dp.callback_query(F.data == "check_loop")
+async def check_loop_handler(call: CallbackQuery) -> None:
     session = USER_SESSIONS.get(call.from_user.id)
-    await call.answer("Sanctuary Entrance Unlocked.")
+    if not session:
+        return
+        
+    cfg = CONFIGS.get(session["lang"])
+    elapsed = time.time() - session["start"]
     
-    # STEP 5: Fire synchronized structural wipe command loops
-    if session:
-        try:
-            await bot.delete_message(chat_id=call.from_user.id, message_id=session["audio_id"])
-            await bot.delete_message(chat_id=call.from_user.id, message_id=session["lyrics_id"])
-        except Exception:
-            pass
-        USER_SESSIONS.pop(call.from_user.id, None)
-    
-    # Smooth, clean slate landing threshold view drop sequence
+    if elapsed < cfg["duration"]:
+        await call.answer("🔒 Please listen fully before confirming.", show_alert=True)
+        return
+        
+    await call.answer()
     await call.message.answer(
-        "<b>Phase 2: Brief Introduction to Repellano Nigeria Limited (RNL)</b>\n\n"
-        "Welcome to the second tier of the Sanctuary onboarding. Content loading...", 
+        "<b>🎵 Playback Verified Natively</b>\n\nWould you like to listen to the Sanctuary Anthem again before we proceed forward?",
+        reply_markup=get_listen_again_kb(),
         parse_mode="HTML"
     )
 
-async def handle_ping(request):
-    return web.Response(text="Sanctuary Core Active", status=200)
+@dp.callback_query(F.data == "choice_yes")
+async def choice_yes_handler(call: CallbackQuery) -> None:
+    await call.answer()
+    await call.message.edit_text(
+        "<b>Select which version of the Sanctuary Anthem you would like to experience again:</b>",
+        reply_markup=get_replay_lang_kb(),
+        parse_mode="HTML"
+    )
 
-async def main() -> None:
-    app = web.Application()
-    app.router.add_get("/", handle_ping)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    port = int(os.getenv("PORT", 10000))
-    site = web.TCPSite(runner, "0.0.0.0", port)
-    await site.start()
-    await bot.delete_webhook(drop_pending_updates=True)
-    try:
-        await dp.start_polling(bot)
-    finally:
-        await bot.session.close()
-
-if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
-        pass
+@dp.callback_query(F.data.startswith("replay_"))
+async def replay_handler(call: CallbackQuery) -> None:
+    lang = call.data.replace("replay_", "")
+    user_id = call.from_user.id
+    session = USER_SESSIONS.get(user_id)
+    
+    await call.answer("Reloading Anthem Core Timeline...")
+    
+    if session and session["lang"] == str(lang):
+        try:
+            await call.message.delete()
+        except Exception:
+            pass
+        cfg = CONFIGS.get(lang)
+        session["start"] = time.time()
+        await bot.edit_message_reply_markup(
+            chat_id=user_id,
