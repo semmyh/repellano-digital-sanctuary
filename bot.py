@@ -37,7 +37,7 @@ from aiogram.types import (
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
-BOT_TOKEN = os.environ["BOT_TOKEN"]          # fail loud if missing
+BOT_TOKEN = os.environ["8642428323:AAFbLCCpoZAn6N-BhgXsjIcEuo21tabg1Ag"]          # fail loud if missing
 CHANNEL_ID = "@RDSTracks"
 
 CONFIGS = {
