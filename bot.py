@@ -9,7 +9,6 @@ from aiogram.types import (
     InlineKeyboardMarkup, 
     InlineKeyboardButton
 )
-from aiohttp import web
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8642428323:AAEe_3Hn-fQ-VHmcKMTdfXBIiC43b-lBGc0")
 bot = Bot(token=BOT_TOKEN)
@@ -24,7 +23,6 @@ CONFIGS = {
 }
 
 USER_SESSIONS = {}
-VERIFIED_USERS = {}
 
 EN_LYRICS = (
     "<b>📜 Repellano Anthem (English Lyrics)</b>\n\n"
@@ -189,7 +187,6 @@ async def replay_handler(call: CallbackQuery) -> None:
     session = USER_SESSIONS.get(user_id)
     await call.answer("Reloading Anthem Core...")
     
-    # FIXED: Flattened completely without nested tries to achieve absolute compile alignment stability
     if session and session["lang"] == str(lang):
         try:
             await call.message.delete()
@@ -197,3 +194,5 @@ async def replay_handler(call: CallbackQuery) -> None:
             pass
         cfg = CONFIGS.get(lang)
         session["start"] = time.time()
+        try:
+            markup = get_verify_kb(lang, session["start"], cfg["duration"])
