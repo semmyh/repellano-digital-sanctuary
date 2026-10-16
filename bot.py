@@ -196,3 +196,4 @@ async def replay_handler(call: CallbackQuery) -> None:
         cfg = CONFIGS.get(lang)
         session["start"] = time.time()
         try:
+            markup = get_verify_kb(lang, session["start"], cfg["duration"])
