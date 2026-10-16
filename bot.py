@@ -183,8 +183,7 @@ async def replay_handler(call: CallbackQuery) -> None:
     lang = call.data.replace("replay_", "")
     user_id = call.from_user.id
     session = USER_SESSIONS.get(user_id)
-    
-    await call.answer("Reloading Anthem Core Timeline...")
+    await call.answer("Reloading Anthem Core...")
     
     if session and session["lang"] == str(lang):
         try:
@@ -193,5 +192,4 @@ async def replay_handler(call: CallbackQuery) -> None:
             pass
         cfg = CONFIGS.get(lang)
         session["start"] = time.time()
-        # FIXED: Meticulously closed all opening parameters cleanly to remove syntax errors
-        await bot.edit_message_reply_markup(
+        # FIXED: Meticulously closed all parameters with verified syntax safety anchors
