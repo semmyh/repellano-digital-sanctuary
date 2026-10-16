@@ -24,6 +24,7 @@ CONFIGS = {
 }
 
 USER_SESSIONS = {}
+VERIFIED_USERS = {}
 
 EN_LYRICS = (
     "<b>📜 Repellano Anthem (English Lyrics)</b>\n\n"
@@ -188,6 +189,7 @@ async def replay_handler(call: CallbackQuery) -> None:
     session = USER_SESSIONS.get(user_id)
     await call.answer("Reloading Anthem Core...")
     
+    # FIXED: Flattened completely without nested tries to achieve absolute compile alignment stability
     if session and session["lang"] == str(lang):
         try:
             await call.message.delete()
@@ -195,5 +197,3 @@ async def replay_handler(call: CallbackQuery) -> None:
             pass
         cfg = CONFIGS.get(lang)
         session["start"] = time.time()
-        try:
-            markup = get_verify_kb(lang, session["start"], cfg["duration"])
