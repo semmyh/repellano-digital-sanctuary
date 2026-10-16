@@ -141,7 +141,10 @@ async def timer_lock_handler(call: CallbackQuery) -> None:
     cfg = CONFIGS.get(session["lang"])
     elapsed = time.time() - session["start"]
     
-    await call.message.edit_reply_markup(reply_markup=get_verify_kb(session["lang"], session["start"], cfg["duration"]))
+    try:
+        await call.message.edit_reply_markup(reply_markup=get_verify_kb(session["lang"], session["start"], cfg["duration"]))
+    except Exception:
+        pass
     
     if elapsed >= cfg["duration"]:
         await call.answer("✨ Playback Complete! Tap the green button to check progress status.", show_alert=True)
@@ -192,4 +195,4 @@ async def replay_handler(call: CallbackQuery) -> None:
             pass
         cfg = CONFIGS.get(lang)
         session["start"] = time.time()
-        # FIXED: Meticulously closed all parameters with verified syntax safety anchors
+        try:
