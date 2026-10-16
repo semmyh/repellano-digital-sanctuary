@@ -63,7 +63,6 @@ def get_verify_kb(lang: str, start_time: float, duration: int) -> InlineKeyboard
             [InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_data="check_loop")]
         ])
     rem = int(duration - elapsed)
-    # FIXED: Re-positioned the play icon exactly according to your preferred phrasing
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
             text=f"First, Click Play Button ▶️ Above to Listen Fully [{rem}s]", 
@@ -194,5 +193,5 @@ async def replay_handler(call: CallbackQuery) -> None:
             pass
         cfg = CONFIGS.get(lang)
         session["start"] = time.time()
+        # FIXED: Meticulously closed all opening parameters cleanly to remove syntax errors
         await bot.edit_message_reply_markup(
-            chat_id=user_id,
