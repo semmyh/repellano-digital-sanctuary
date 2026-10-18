@@ -1,6 +1,7 @@
 import os
 import logging
 import asyncio
+import time
 from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -16,7 +17,9 @@ log = logging.getLogger("repellano")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8642428323:AAHO71GubQl4kvAIeT1dpI_NA2gsqKGS8eI").strip()
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@RDSTracks")
 
-# --- CONTEXT LAYOUT CONFIGURATIONS (MarkdownV2 Escaped) ---
+# UI refresh cadence to protect your free server instance against Telegram Flood limits.
+TICK = 5 
+
 CONFIGS = {
     "en":     {"msg_id": 6,  "duration": 240, "title": "English"},
     "pidgin": {"msg_id": 15, "duration": 234, "title": "Pidgin"},
@@ -60,6 +63,21 @@ USER_SESSIONS: dict[int, dict] = {}
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
 dp = Dispatcher()
 
+# --- SECURITY INTERFACE UTILITIES ---
+async def safe_edit(chat_id: int, message_id: int, text: str, markup) -> None:
+    try:
+        await bot.edit_message_text(chat_id=chat_id, message_id=message_id, 
+                                    text=text, reply_markup=markup, parse_mode=ParseMode.MARKDOWN_V2)
+    except TelegramRetryAfter as e:
+        await asyncio.sleep(e.retry_after)
+        try:
+            await bot.edit_message_text(chat_id=chat_id, message_id=message_id, 
+                                        text=text, reply_markup=markup, parse_mode=ParseMode.MARKDOWN_V2)
+        except Exception:
+            pass
+    except Exception:
+        pass
+
 # --- KEYBOARDS ---
 def lang_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -73,19 +91,57 @@ def listening_keyboard(remaining: int) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text=f"🔒 Unlock Sanctuary ({remaining}s)", callback_data="unlock")],
     ])
 
+# --- DYNAMIC BACKGROUND LOUD COUNTDOWN ENGINE ---
+async def run_countdown(user_id: int, message_id: int, duration: int) -> None:
+    start_time = time.time()
+    end_time = start_time + duration
+
+    while True:
+        await asyncio.sleep(TICK)
+        session = USER_SESSIONS.get(user_id)
+        # Verify the session is still valid and has not been restarted
+        if not session or session.get("task") != asyncio.current_task():
+            break
+
+        now = time.time()
+        remaining = int(max(0, end_time - now))
+        session["remaining"] = remaining
+
+        if remaining <= 0:
+            # Staging boundary text for Step 4 complete state
+            await safe_edit(
+                chat_id=user_id,
+                message_id=message_id,
+                text="🎵 *Sanctuary Anthem Playback Finished\!*\nPlease select unlock option below\.",
+                markup=listening_keyboard(0)
+            )
+            break
+        else:
+            await safe_edit(
+                chat_id=user_id,
+                message_id=message_id,
+                text=INSTRUCTIONS,
+                markup=listening_keyboard(remaining)
+            )
+
 # --- /start COMMAND ROUTE ---
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     user_id = message.from_user.id
     name = message.from_user.first_name or "Leno"
 
-    session = {"lang": None, "to_wipe": [], "task": None, "remaining": 0}
+    # Reset tracking handles cleanly if executed concurrently
+    old = USER_SESSIONS.pop(user_id, None)
+    if old and old.get("task") and not old["task"].done():
+        old["task"].cancel()
+
+    session = {"lang": None, "to_wipe": [], "task": None, "remaining": 0, "end_time": 0}
     USER_SESSIONS[user_id] = session
 
     greeting = await message.answer(text=GREETING.format(name=name), reply_markup=lang_keyboard())
     session["to_wipe"].append(greeting.message_id)
 
-# --- STEP 2 LANGUAGE CALLBACK HANDLER ---
+# --- STEP 2 CUSTOM SELECTION FORK ---
 @dp.callback_query(F.data.startswith("lang:"))
 async def on_lang(cb: CallbackQuery) -> None:
     lang = cb.data.split(":", 1)[1]
@@ -100,60 +156,45 @@ async def on_lang(cb: CallbackQuery) -> None:
     cfg = CONFIGS[lang]
     session["lang"] = lang
     session["remaining"] = cfg["duration"]
+    session["end_time"] = time.time() + cfg["duration"]
 
-    # 1. Drop Audio Track Card copied from Channel
+    # 1. Load track copy from storage base
     try:
-        audio_msg = await bot.copy_message(
-            chat_id=user_id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"]
-        )
+        audio_msg = await bot.copy_message(chat_id=user_id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"])
         session["to_wipe"].append(audio_msg.message_id)
     except Exception as e:
-        log.error("Audio copy failed: %s", e)
-        await cb.message.answer("⚠️ Could not load track audio. Is the bot an Admin in your channel?")
+        log.error("Audio execution failed: %s", e)
+        await cb.message.answer("⚠️ Could not load track audio. Confirm permissions configuration.")
         return
 
-    # 2. Drop Lyrics Card
+    # 2. Print localized lyrics card layout
     lyrics_text = EN_LYRICS if lang == "en" else PIDGIN_LYRICS
     lyrics_msg = await cb.message.answer(text=lyrics_text)
     session["to_wipe"].append(lyrics_msg.message_id)
 
-    # 3. Drop Instructions Card with the dual instruction texts and dynamic layout buttons
-    instructions_msg = await cb.message.answer(
-        text=INSTRUCTIONS,
-        reply_markup=listening_keyboard(cfg["duration"])
-    )
+    # 3. Print main instruction interface 
+    instructions_msg = await cb.message.answer(text=INSTRUCTIONS, reply_markup=listening_keyboard(cfg["duration"]))
     session["to_wipe"].append(instructions_msg.message_id)
 
-# --- NOOP HANDLER FOR DISABLED BUTTON ---
-@dp.callback_query(F.data == "noop")
-async def on_noop(cb: CallbackQuery) -> None:
-    await cb.answer()
+    # 4. Fire localized non-blocking user countdown thread worker task
+    session["task"] = asyncio.create_task(run_countdown(user_id, instructions_msg.message_id, cfg["duration"]))
 
-# --- OTHER CALLBACK STUBS FOR SAFETY ---
+# --- STEP 3 ANTI-CHEAT INTERLOCK SECURE POPUP ---
 @dp.callback_query(F.data == "unlock")
-async def on_unlock_stub(cb: CallbackQuery) -> None:
-    await cb.answer("Tracking listener status... (Countdown logic will be added in Step 3)", show_alert=True)
+async def on_unlock(cb: CallbackQuery) -> None:
+    user_id = cb.from_user.id
+    session = USER_SESSIONS.get(user_id)
+    
+    if not session:
+        await cb.answer("Session expired. Please execute /start.", show_alert=True)
+        return
 
-# --- WEB STATUS SERVER ---
-async def health(_: web.Request) -> web.Response:
-    return web.Response(text="Step 2 Server Active.")
+    # Calculate real-time down-to-the-second precise remaining durations dynamically 
+    if session.get("end_time", 0) > 0:
+        now = time.time()
+        remaining = int(max(0, session["end_time"] - now))
+        session["remaining"] = remaining
+    else:
+        remaining = session.get("remaining", 0)
 
-async def start_web() -> None:
-    app = web.Application()
-    app.router.add_get("/", health)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    port = int(os.getenv("PORT", "8080"))
-    await web.TCPSite(runner, "0.0.0.0", port).start()
-
-async def main() -> None:
-    await start_web()
-    await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
-
-if __name__ == "__main__":
-    import asyncio
-    try:
-        asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
-        pass
+    if remaining > 0:
