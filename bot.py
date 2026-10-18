@@ -1,10 +1,12 @@
 import os
 import logging
-from aiogram import Bot, Dispatcher
+import asyncio
+from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.exceptions import TelegramRetryAfter, TelegramBadRequest
 from aiohttp import web
 
 # --- LOGGING SETUP ---
@@ -12,26 +14,63 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(
 log = logging.getLogger("repellano")
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8642428323:AAHO71GubQl4kvAIeT1dpI_NA2gsqKGS8eI").strip()
+CHANNEL_ID = os.getenv("CHANNEL_ID", "@RDSTracks")
 
-# --- STEP 1 TEXT LAYOUT (Forced Markdown Mode) ---
-# Wrapping a variable in asterisks (*) makes it completely bold in standard Markdown.
+# --- CONTEXT LAYOUT CONFIGURATIONS (MarkdownV2 Escaped) ---
+CONFIGS = {
+    "en":     {"msg_id": 6,  "duration": 240, "title": "English"},
+    "pidgin": {"msg_id": 15, "duration": 234, "title": "Pidgin"},
+}
+
 GREETING = (
     "Welcome, Dear *{name}*\!\n\n"
     "To begin, take the first step\. Choose your language version "
     "below to enjoy the Sanctuary's Anthem\."
 )
 
+EN_LYRICS = (
+    "📜 *Repellano Anthem \(English Lyrics\)*\n\n"
+    "*\[Intro\]*\nWelcome to the Sanctuary\.\nWhere the chaotic markets find their perfect peace\.\nThis is SemLeno's Repellano Digital Sanctuary\.\n\n"
+    "*\[Verse 1\]*\nThe global markets spin in a wild, endless race\nComplex forex trading moving at a blinding pace\nBut inside the Sanctuary, the vision is crystal clear\nWe strip away the chaos, we break down the fear\nTurning heavy burdens into a simple tool for all\.\n\n"
+    "*\[Chorus\]*\nSimple\. Automated\. Universal\.\nThirty\-five FSSOs, the tech reversal\!\nUniversal empowerment, no matter where you start\nRepellano lifting up, up, up, up, every single heart\!\nEvery single heart\!\nEvery single heart\n\n"
+    "*\[Verse 2\]*\nAn ecosystem built to redefine the grand design\nWhere mathematics meets the market, aligning line by line\nA seamless architecture, steady, smooth, and deep\nWorking in the silence while the world is fast asleep\.\n\n"
+    "*\[Verse 3\]*\nThirty\-five FSSOs standing structured and strong\nFinancial Support Service Offerings where they belong\nAutomated utilities that never tire or fade\nTo help all those struggling with their finances\n\n"
+    "*\[Chorus\]*\nSimple\. Automated\. Universal\.\nThirty\-five FSSOs, the tech reversal\!\nUniversal empowerment, no matter where you start\nRepellano lifting up, up, up, up, every single heart\!\nEvery single heart\!\nEvery single heart\!\n\n"
+    "*\[Outro\]*\nThe Digital Sanctuary\.\nWe build, we automate, we rise\.\n\[Fade Out\] \[End\]"
+)
+
+PIDGIN_LYRICS = (
+    "📜 *Repellano Anthem \(Pidgin Lyrics\)*\n\n"
+    "*\[Intro\]*\nWelcome to the Sanctuary\.\nWhere jaga jaga forex markets find their perfect peace\.\nThis na Semleno Repellano Digital Sanctuary\.\n\n"
+    "*\[Verse 1\]*\nThe world market dey spin anyhow, e no dey stop\nForex trading sharp well\-well, things just dey pop\nBut inside this Sanctuary, the vision clear pass glass\nWe dey commot the confusion, make the fear join pass\nWe dey change heavy lodu simple tool for everybody\.\n\n"
+    "*\[Chorus\]*\nE simple\. E dey run on own\. E dey for everyone\.\nThirty\-five FSSOs, the tech don change the run\!\nPower dey for everybody, no matter where you start from\nRepellano oh, oh, oh every single heart\!\nEvery single heart\nEvery single heart\nEvery single heart\n\n"
+    "*\[Verse 2\]*\nThe whole setup dey here to change how things suppose to be\nWhere math and market jam, things arrange properly\nThe system solid well\-well, e smooth and e deep\nE dey work sharp\-sharp inside silence when the world dey sleep\.\n\n"
+    "*\[Verse 3\]*\nThirty\-five FSSOs stand gidigba, everything set well\nFinancial Support Service Offerings, na him we call FSSOs\nAutomated tools wey no dey tire or lose face\nTo support everybody wey dey struggle hard to find small money\n\n"
+    "*\[Chorus\]*\nSimple\. Automated\. Universal\.\nThirty\-five FSSOs, the tech reversal\!\nFinancial power for you, no matter where you start\nRepellano oh, oh, oh every single heart\!\nEvery single heart\nEvery single heart\n\n"
+    "*\[Outro\]*\nThe Digital Sanctuary\.\nWe don build, we don automate, we wan rise\.\n\[Fade Out\]\[End\]"
+)
+
+INSTRUCTIONS = (
+    "1️⃣ First, click the *Play button ▶️ above* to listen fully\.\n\n"
+    "🔒 Then, return here and click *Unlock Sanctuary* below\."
+)
+
 USER_SESSIONS: dict[int, dict] = {}
 
-# Globally configure the bot engine instance to read standard Markdown format properties
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
 dp = Dispatcher()
 
-# --- STEP 1 LAYOUT KEYBOARD ---
+# --- KEYBOARDS ---
 def lang_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎧 English Version", callback_data="lang:en")],
         [InlineKeyboardButton(text="🎧 Pidgin Version",  callback_data="lang:pidgin")],
+    ])
+
+def listening_keyboard(remaining: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"▶️ Now Playing — {remaining}s remaining", callback_data="noop")],
+        [InlineKeyboardButton(text=f"🔒 Unlock Sanctuary ({remaining}s)", callback_data="unlock")],
     ])
 
 # --- /start COMMAND ROUTE ---
@@ -40,22 +79,64 @@ async def cmd_start(message: Message) -> None:
     user_id = message.from_user.id
     name = message.from_user.first_name or "Leno"
 
-    # Isolate user mapping parameters to support Step 5 multiple concurrent runs
     session = {"lang": None, "to_wipe": [], "task": None, "remaining": 0}
     USER_SESSIONS[user_id] = session
 
-    # Post greeting explicitly with Markdown rules enforced
-    greeting = await message.answer(
-        text=GREETING.format(name=name),
-        reply_markup=lang_keyboard(),
-        parse_mode=ParseMode.MARKDOWN_V2
-    )
-    
+    greeting = await message.answer(text=GREETING.format(name=name), reply_markup=lang_keyboard())
     session["to_wipe"].append(greeting.message_id)
 
-# --- WEB STATUS SERVER ROUTINES ---
+# --- STEP 2 LANGUAGE CALLBACK HANDLER ---
+@dp.callback_query(F.data.startswith("lang:"))
+async def on_lang(cb: CallbackQuery) -> None:
+    lang = cb.data.split(":", 1)[1]
+    user_id = cb.from_user.id
+    session = USER_SESSIONS.get(user_id)
+    
+    if session is None:
+        await cb.answer("Please type /start to reset your session.", show_alert=True)
+        return
+
+    await cb.answer()
+    cfg = CONFIGS[lang]
+    session["lang"] = lang
+    session["remaining"] = cfg["duration"]
+
+    # 1. Drop Audio Track Card copied from Channel
+    try:
+        audio_msg = await bot.copy_message(
+            chat_id=user_id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"]
+        )
+        session["to_wipe"].append(audio_msg.message_id)
+    except Exception as e:
+        log.error("Audio copy failed: %s", e)
+        await cb.message.answer("⚠️ Could not load track audio. Is the bot an Admin in your channel?")
+        return
+
+    # 2. Drop Lyrics Card
+    lyrics_text = EN_LYRICS if lang == "en" else PIDGIN_LYRICS
+    lyrics_msg = await cb.message.answer(text=lyrics_text)
+    session["to_wipe"].append(lyrics_msg.message_id)
+
+    # 3. Drop Instructions Card with the dual instruction texts and dynamic layout buttons
+    instructions_msg = await cb.message.answer(
+        text=INSTRUCTIONS,
+        reply_markup=listening_keyboard(cfg["duration"])
+    )
+    session["to_wipe"].append(instructions_msg.message_id)
+
+# --- NOOP HANDLER FOR DISABLED BUTTON ---
+@dp.callback_query(F.data == "noop")
+async def on_noop(cb: CallbackQuery) -> None:
+    await cb.answer()
+
+# --- OTHER CALLBACK STUBS FOR SAFETY ---
+@dp.callback_query(F.data == "unlock")
+async def on_unlock_stub(cb: CallbackQuery) -> None:
+    await cb.answer("Tracking listener status... (Countdown logic will be added in Step 3)", show_alert=True)
+
+# --- WEB STATUS SERVER ---
 async def health(_: web.Request) -> web.Response:
-    return web.Response(text="Status: Active.")
+    return web.Response(text="Step 2 Server Active.")
 
 async def start_web() -> None:
     app = web.Application()
@@ -65,13 +146,9 @@ async def start_web() -> None:
     port = int(os.getenv("PORT", "8080"))
     await web.TCPSite(runner, "0.0.0.0", port).start()
 
-# --- EXECUTION SYSTEM ---
 async def main() -> None:
     await start_web()
-    log.info("Starting up service polling...")
     await bot.delete_webhook(drop_pending_updates=True)
-    
-    # CRITICAL ARCHITECTURAL FIX: Pass 'bot' object here to stop the 'Dispatcher' crash completely
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
@@ -79,4 +156,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
-        log.info("Server terminated cleanly.")
+        pass
