@@ -18,7 +18,7 @@ log = logging.getLogger("repellano")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8642428323:AAHO71GubQl4kvAIeT1dpI_NA2gsqKGS8eI").strip()
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@RDSTracks")
 
-# UI refresh cadence to protect free-tier servers from Telegram rate-limits
+# UI refresh rhythm to protect free-tier servers from Telegram rate-limits
 TICK = 5 
 
 CONFIGS = {
@@ -66,18 +66,13 @@ USER_SESSIONS: dict[int, dict] = {}
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
 dp = Dispatcher()
 
-# ---------------------------------------------------------------------------
-# SINGLE SOURCE OF TRUTH FOR THE COUNTDOWN (Developer Mod Integration)
-# ---------------------------------------------------------------------------
+# --- SECURITY UTILITIES ---
 def secs_left(session: dict) -> int:
     end = session.get("end_time", 0.0)
     if not end:
         return 0
     return max(0, math.ceil(end - time.monotonic()))
 
-# ---------------------------------------------------------------------------
-# SAFE EDIT LAYOUT INTERFACE
-# ---------------------------------------------------------------------------
 async def safe_edit(chat_id: int, message_id: int, text: str, markup) -> bool:
     try:
         await bot.edit_message_text(
@@ -104,9 +99,7 @@ async def safe_edit(chat_id: int, message_id: int, text: str, markup) -> bool:
     except Exception:
         return False
 
-# ---------------------------------------------------------------------------
-# THE BACKGROUND COUNTDOWN ENGINE
-# ---------------------------------------------------------------------------
+# --- BACKGROUND COUNTDOWN ENGINE ---
 async def run_countdown(user_id: int, message_id: int, session: dict) -> None:
     me = asyncio.current_task()
 
@@ -128,9 +121,7 @@ async def run_countdown(user_id: int, message_id: int, session: dict) -> None:
         if not ok:
             return
 
-# ---------------------------------------------------------------------------
-# KEYBOARDS
-# ---------------------------------------------------------------------------
+# --- KEYBOARDS ---
 def lang_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎧 English Version", callback_data="lang:en")],
@@ -149,9 +140,7 @@ def complete_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text=f"🔒 Unlock Sanctuary (0s)", callback_data="unlock")],
     ])
 
-# ---------------------------------------------------------------------------
-# /start COMMAND ROUTE
-# ---------------------------------------------------------------------------
+# --- TELEGRAM ACTIONS ---
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     user_id = message.from_user.id
@@ -167,9 +156,6 @@ async def cmd_start(message: Message) -> None:
     greeting = await message.answer(text=GREETING.format(name=name), reply_markup=lang_keyboard())
     session["to_wipe"].append(greeting.message_id)
 
-# ---------------------------------------------------------------------------
-# STEP 2 HANDLER
-# ---------------------------------------------------------------------------
 @dp.callback_query(F.data.startswith("lang:"))
 async def on_lang(cb: CallbackQuery) -> None:
     lang = cb.data.split(":", 1)[1]
@@ -200,3 +186,31 @@ async def on_lang(cb: CallbackQuery) -> None:
         await cb.message.answer("⚠️ Could not load track audio.")
         return
 
+    lyrics_text = EN_LYRICS if lang == "en" else PIDGIN_LYRICS
+    lyrics_msg = await cb.message.answer(text=lyrics_text)
+    session["to_wipe"].append(lyrics_msg.message_id)
+
+    instructions_msg = await cb.message.answer(text=INSTRUCTIONS, reply_markup=listening_keyboard(cfg["duration"]))
+    session["to_wipe"].append(instructions_msg.message_id)
+
+    session["task"] = asyncio.create_task(run_countdown(user_id, instructions_msg.message_id, session))
+
+@dp.callback_query(F.data == "unlock")
+async def on_unlock(cb: CallbackQuery) -> None:
+    user_id = cb.from_user.id
+    session = USER_SESSIONS.get(user_id)
+
+    if not session or session.get("lang") is None:
+        await cb.answer("Session expired. Please /start again.", show_alert=True)
+        return
+
+    remaining = secs_left(session)
+
+    if remaining > 0:
+        await cb.answer(
+            f"🔒 Please listen fully to unlock the Sanctuary.\n⏳ {remaining} second(s) remaining.",
+            show_alert=True,
+        )
+        return
+
+    session["completed"] = True
