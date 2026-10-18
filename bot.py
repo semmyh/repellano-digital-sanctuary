@@ -64,7 +64,6 @@ def secs_left(session: dict) -> int:
     end = session.get("end_time", 0.0)
     if not end:
         return 0
-    # Uses monotonic time intervals to prevent user manipulation of system clocks
     return max(0, math.ceil(end - time.monotonic()))
 
 # --- KEYBOARDS ---
@@ -75,8 +74,8 @@ def lang_keyboard() -> InlineKeyboardMarkup:
     ])
 
 def listening_keyboard(duration: int) -> InlineKeyboardMarkup:
+    # CLEANED UP: Contains ONLY the exact single button format specified in your layout concept
     return InlineKeyboardMarkup(inline_keyboard=[
-        # Preserves the exact static visual presentation format requested
         [InlineKeyboardButton(text=f"🔒 Unlock Sanctuary ({duration}s)", callback_data="unlock")],
     ])
 
@@ -109,21 +108,21 @@ async def on_lang(cb: CallbackQuery) -> None:
     session["lang"] = lang
     session["end_time"] = time.monotonic() + cfg["duration"]
 
-    # 1. Load Track Audio from Resource Channel
+    # 1. Copy Audio Message from Storage Channel
     try:
         audio_msg = await bot.copy_message(chat_id=user_id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"])
         session["to_wipe"].append(audio_msg.message_id)
     except Exception as e:
-        log.error("Audio execution failed: %s", e)
-        await cb.message.answer("⚠️ Could not load track audio.")
+        log.error("Audio copy failed: %s", e)
+        await cb.message.answer("⚠️ Could not load track audio. Confirm bot channel admin status.")
         return
 
-    # 2. Print Content Lyrics Card Layout Nodes
+    # 2. Print Lyrics Card Layout Node
     lyrics_text = EN_LYRICS if lang == "en" else PIDGIN_LYRICS
     lyrics_msg = await bot.send_message(chat_id=user_id, text=lyrics_text, parse_mode=ParseMode.HTML)
     session["to_wipe"].append(lyrics_msg.message_id)
 
-    # 3. Print Action Instructions Pinned to static UI Buttons
+    # 3. Print Instructions Layout Block with Single Action Button
     instructions_msg = await bot.send_message(
         chat_id=user_id, 
         text=INSTRUCTIONS, 
@@ -147,13 +146,13 @@ async def on_unlock(cb: CallbackQuery) -> None:
         # Delivers an on-demand real-time warning popup modal window tracking single-second values exactly
         await cb.answer(
             f"🔒 Please listen fully to unlock the Sanctuary.\n"
-            f"({remaining} seconds remaining).",
+            f"⏳ ({remaining} seconds remaining).",
             show_alert=True,
         )
         return
 
-    # Authorized clear state node trigger to be handled next inside Step 4
-    await cb.answer("✅ Playback verified! Ready for validation confirmation.", show_alert=True)
+    # Clear state authorization pass. Step 4 handler hook attaches here next
+    await cb.answer("✅ Playback verified! Proceeding to validation state...", show_alert=True)
 
 # --- WEB WORKER HEALTH PLATFORM PORTS ---
 async def health_handler(request):
