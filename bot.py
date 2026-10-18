@@ -46,7 +46,7 @@ PIDGIN_LYRICS = (
     "📜 *Repellano Anthem \(Pidgin Lyrics\)*\n\n"
     "*\[Intro\]*\nWelcome to the Sanctuary\.\nWhere jaga jaga forex markets find their perfect peace\.\nThis na Semleno Repellano Digital Sanctuary\.\n\n"
     "*\[Verse 1\]*\nThe world market dey spin anyhow, e no dey stop\nForex trading sharp well\-well, things just dey pop\nBut inside this Sanctuary, the vision clear pass glass\nWe dey commot the confusion, make the fear join pass\nWe dey change heavy lodu simple tool for everybody\.\n\n"
-    "*\[Chorus\]*\nE simple\. E dey run on own\. E dey for everyone\.\nThirty\-five FSSOs, the tech don change the run\!\nPower dey for everybody, no matter where you start from\nRepellano oh, oh, oh every single heart\!\nEvery single heart\nEvery single heart\nEvery single heart\n\n"
+    "*\[Chorus\]*\nE simple\. E dey run on own\. E dey for everyone\.\nThirty\-five FSSOs, the tech don change the run\!\nPower dey for everybody, no matter where you start from\nRepellano oh, oh, oh every single heart\!\nEvery single heart\nEvery single heart\n\n"
     "*\[Verse 2\]*\nThe whole setup dey here to change how things suppose to be\nWhere math and market jam, things arrange properly\nThe system solid well\-well, e smooth and e deep\nE dey work sharp\-sharp inside silence when the world dey sleep\.\n\n"
     "*\[Verse 3\]*\nThirty\-five FSSOs stand gidigba, everything set well\nFinancial Support Service Offerings, na him we call FSSOs\nAutomated tools wey no dey tire or lose face\nTo support everybody wey dey struggle hard to find small money\n\n"
     "*\[Chorus\]*\nSimple\. Automated\. Universal\.\nThirty\-five FSSOs, the tech reversal\!\nFinancial power for you, no matter where you start\nRepellano oh, oh, oh every single heart\!\nEvery single heart\nEvery single heart\n\n"
@@ -203,3 +203,5 @@ async def on_noop(cb: CallbackQuery) -> None:
 
 # --- WEB FRAMEWORK PORTS ---
 async def health(_: web.Request) -> web.Response:
+    return web.Response(text="Step 3 Alive.")
+
