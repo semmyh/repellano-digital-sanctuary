@@ -8,7 +8,6 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-from aiohttp import web
 
 # --- LOGGING SETUP ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
@@ -178,16 +177,14 @@ async def on_confirm(cb: CallbackQuery) -> None:
 async def on_noop(cb: CallbackQuery) -> None:
     await cb.answer()
 
-# --- WEB FRAMEWORK STATUS PORTS ---
-async def health_handler(request):
-    return web.Response(text="Server Online.")
-
-async def on_startup(app_instance):
-    log.info("Port bound cleanly. Running Telegram polling engine setup...")
+async def main() -> None:
+    log.info("Native Background Engine spinning up...")
+    # Explicitly clear hook cache and flush conflicts instantly on startup
     await bot.delete_webhook(drop_pending_updates=True)
-    # Background worker execution context path safely handled inside a dedicated event loop assignment
-    asyncio.create_task(dp.start_polling(bot, skip_updates=True))
+    await dp.start_polling(bot)
 
-def main():
-    app = web.Application()
-    app.router.add_get("/", health_handler)
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        pass
