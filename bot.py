@@ -68,13 +68,12 @@ PHASE2_TEXT = (
     "across all related domains\. Welcome aboard your onboarding journey\!"
 )
 
-# Step 5: Isolated session engine for zero crossing data across users
 USER_SESSIONS: dict[int, dict] = {}
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
 dp = Dispatcher()
 
-# --- TIME COMPUTATION ENGINE ---
+# --- TIME ENGINE ---
 def secs_left(session: dict) -> int:
     end = session.get("end_time", 0.0)
     if not end:
@@ -99,32 +98,26 @@ def done_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_data="confirm")],
     ])
 
-# --- /start COMMAND ROUTE ---
+# --- HANDLERS ---
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     user_id = message.from_user.id
     name = message.from_user.first_name or "Leno"
-
     session = {"lang": None, "to_wipe": [], "remaining": 0, "end_time": 0}
     USER_SESSIONS[user_id] = session
-
     greeting = await message.answer(text=GREETING.format(name=name), reply_markup=lang_keyboard())
     session["to_wipe"].append(greeting.message_id)
 
-# --- STEP 2 HANDLER ---
 @dp.callback_query(F.data.startswith("lang:"))
 async def on_lang(cb: CallbackQuery) -> None:
     lang = cb.data.split(":", 1)[1]
     user_id = cb.from_user.id
     session = USER_SESSIONS.get(user_id)
-
     if session is None:
         await cb.answer("Please type /start to reset your session.", show_alert=True)
         return
-
     await cb.answer()
     cfg = CONFIGS[lang]
-
     session["lang"] = lang
     session["end_time"] = time.monotonic() + cfg["duration"]
 
@@ -140,70 +133,44 @@ async def on_lang(cb: CallbackQuery) -> None:
     lyrics_msg = await bot.send_message(chat_id=user_id, text=lyrics_text, parse_mode=ParseMode.HTML)
     session["to_wipe"].append(lyrics_msg.message_id)
 
-    instructions_msg = await bot.send_message(
-        chat_id=user_id, 
-        text=INSTRUCTIONS, 
-        reply_markup=listening_keyboard(cfg["duration"])
-    )
+    instructions_msg = await bot.send_message(chat_id=user_id, text=INSTRUCTIONS, reply_markup=listening_keyboard(cfg["duration"]))
     session["to_wipe"].append(instructions_msg.message_id)
     session["control_msg_id"] = instructions_msg.message_id
 
-# --- STEP 3 & 4 ANTI-CHEAT GATEKEEPER & MORPH ---
 @dp.callback_query(F.data == "unlock")
 async def on_unlock(cb: CallbackQuery) -> None:
     user_id = cb.from_user.id
     session = USER_SESSIONS.get(user_id)
-
     if not session or session.get("lang") is None:
         await cb.answer("Session expired. Please /start again.", show_alert=True)
         return
-
     remaining = secs_left(session)
-
     if remaining > 0:
-        await cb.answer(
-            f"🔒 Please listen fully to unlock the Sanctuary.\n"
-            f"⏳ ({remaining} seconds remaining).",
-            show_alert=True,
-        )
+        await cb.answer(f"🔒 Please listen fully to unlock the Sanctuary.\n⏳ ({remaining} seconds remaining).", show_alert=True)
         return
-
     await cb.answer("✅ Playback verified!", show_alert=True)
     try:
-        await bot.edit_message_text(
-            chat_id=user_id,
-            message_id=session["control_msg_id"],
-            text=COMPLETE_TEXT,
-            reply_markup=done_keyboard(),
-            parse_mode=ParseMode.MARKDOWN_V2
-        )
+        await bot.edit_message_text(chat_id=user_id, message_id=session["control_msg_id"], text=COMPLETE_TEXT, reply_markup=done_keyboard(), parse_mode=ParseMode.MARKDOWN_V2)
     except Exception:
         pass
 
-# --- STEP 4 IMMACULATE CLEAN SWEEP WIPE ROUTINE ---
 @dp.callback_query(F.data == "confirm")
 async def on_confirm(cb: CallbackQuery) -> None:
     user_id = cb.from_user.id
     session = USER_SESSIONS.get(user_id)
-
     if not session or session.get("lang") is None:
         await cb.answer("Session expired. Please /start again.", show_alert=True)
         return
-
-    remaining = secs_left(session)
-    if remaining > 0:
+    if secs_left(session) > 0:
         await cb.answer("🔒 Security error. Tracking time metrics incomplete.", show_alert=True)
         return
-
     await cb.answer("Processing absolute clean sweep wipe...")
-
     for msg_id in session.get("to_wipe", []):
         try:
             await bot.delete_message(chat_id=user_id, message_id=msg_id)
         except Exception:
             pass
         await asyncio.sleep(0.05)
-
     await bot.send_message(chat_id=user_id, text=PHASE2_TEXT, parse_mode=ParseMode.MARKDOWN_V2)
     USER_SESSIONS.pop(user_id, None)
 
@@ -211,7 +178,16 @@ async def on_confirm(cb: CallbackQuery) -> None:
 async def on_noop(cb: CallbackQuery) -> None:
     await cb.answer()
 
-# --- WEB WORKER HEALTH ENGINE ---
+# --- WEB FRAMEWORK STATUS PORTS ---
 async def health_handler(request):
     return web.Response(text="Server Online.")
 
+async def on_startup(app_instance):
+    log.info("Port bound cleanly. Running Telegram polling engine setup...")
+    await bot.delete_webhook(drop_pending_updates=True)
+    # Background worker execution context path safely handled inside a dedicated event loop assignment
+    asyncio.create_task(dp.start_polling(bot, skip_updates=True))
+
+def main():
+    app = web.Application()
+    app.router.add_get("/", health_handler)
