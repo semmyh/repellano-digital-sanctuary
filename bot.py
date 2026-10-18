@@ -2,6 +2,7 @@ import os
 import logging
 import time
 import math
+import asyncio
 from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -74,7 +75,6 @@ def lang_keyboard() -> InlineKeyboardMarkup:
     ])
 
 def listening_keyboard(duration: int) -> InlineKeyboardMarkup:
-    # CLEANED UP: Contains ONLY the exact single button format specified in your layout concept
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"🔒 Unlock Sanctuary ({duration}s)", callback_data="unlock")],
     ])
@@ -143,7 +143,6 @@ async def on_unlock(cb: CallbackQuery) -> None:
     remaining = secs_left(session)
 
     if remaining > 0:
-        # Delivers an on-demand real-time warning popup modal window tracking single-second values exactly
         await cb.answer(
             f"🔒 Please listen fully to unlock the Sanctuary.\n"
             f"⏳ ({remaining} seconds remaining).",
@@ -151,7 +150,6 @@ async def on_unlock(cb: CallbackQuery) -> None:
         )
         return
 
-    # Clear state authorization pass. Step 4 handler hook attaches here next
     await cb.answer("✅ Playback verified! Proceeding to validation state...", show_alert=True)
 
 # --- WEB WORKER HEALTH PLATFORM PORTS ---
