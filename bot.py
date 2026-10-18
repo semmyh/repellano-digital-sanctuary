@@ -3,11 +3,9 @@ import logging
 import time
 import math
 import asyncio
-from aiogram import Bot, Dispatcher, F
-from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
-from aiogram.filters import CommandStart
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from telebot.async_telebot import AsyncTeleBot
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiohttp import web
 
 # --- LOGGING SETUP ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
@@ -69,8 +67,7 @@ PHASE2_TEXT = (
 
 USER_SESSIONS: dict[int, dict] = {}
 
-bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
-dp = Dispatcher()
+bot = AsyncTeleBot(BOT_TOKEN)
 
 # --- TIME ENGINE ---
 def secs_left(session: dict) -> int:
@@ -81,41 +78,45 @@ def secs_left(session: dict) -> int:
 
 # --- KEYBOARDS ---
 def lang_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎧 English Version", callback_data="lang:en")],
-        [InlineKeyboardButton(text="🎧 Pidgin Version",  callback_data="lang:pidgin")],
-    ])
+    markup = InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        InlineKeyboardButton(text="🎧 English Version", callback_data="lang:en"),
+        InlineKeyboardButton(text="🎧 Pidgin Version",  callback_data="lang:pidgin")
+    )
+    return markup
 
 def listening_keyboard(duration: int) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"🔒 Unlock Sanctuary ({duration}s)", callback_data="unlock")],
-    ])
+    markup = InlineKeyboardMarkup(row_width=1)
+    markup.add(InlineKeyboardButton(text=f"🔒 Unlock Sanctuary ({duration}s)", callback_data="unlock"))
+    return markup
 
 def done_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎧 Track Playback Complete", callback_data="noop")],
-        [InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_data="confirm")],
-    ])
+    markup = InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        InlineKeyboardButton(text="🎧 Track Playback Complete", callback_data="noop"),
+        InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_data="confirm")
+    )
+    return markup
 
-# --- HANDLERS ---
-@dp.message(CommandStart())
-async def cmd_start(message: Message) -> None:
+# --- TELEGRAM ROUTES ---
+@bot.message_handler(commands=['start'])
+async def cmd_start(message):
     user_id = message.from_user.id
     name = message.from_user.first_name or "Leno"
     session = {"lang": None, "to_wipe": [], "remaining": 0, "end_time": 0}
     USER_SESSIONS[user_id] = session
-    greeting = await message.answer(text=GREETING.format(name=name), reply_markup=lang_keyboard())
+    greeting = await bot.send_message(chat_id=user_id, text=GREETING.format(name=name), reply_markup=lang_keyboard(), parse_mode="MarkdownV2")
     session["to_wipe"].append(greeting.message_id)
 
-@dp.callback_query(F.data.startswith("lang:"))
-async def on_lang(cb: CallbackQuery) -> None:
-    lang = cb.data.split(":", 1)[1]
-    user_id = cb.from_user.id
+@bot.callback_query_handler(func=lambda call: call.data.startswith("lang:"))
+async def on_lang(call):
+    lang = call.data.split(":", 1)[1]
+    user_id = call.from_user.id
     session = USER_SESSIONS.get(user_id)
     if session is None:
-        await cb.answer("Please type /start to reset your session.", show_alert=True)
+        await bot.answer_callback_query(call.id, text="Please type /start to reset your session.", show_alert=True)
         return
-    await cb.answer()
+    await bot.answer_callback_query(call.id)
     cfg = CONFIGS[lang]
     session["lang"] = lang
     session["end_time"] = time.monotonic() + cfg["duration"]
@@ -125,66 +126,66 @@ async def on_lang(cb: CallbackQuery) -> None:
         session["to_wipe"].append(audio_msg.message_id)
     except Exception as e:
         log.error("Audio copy failed: %s", e)
-        await cb.message.answer("⚠️ Could not load track audio.")
+        await bot.send_message(chat_id=user_id, text="⚠️ Could not load track audio.")
         return
 
     lyrics_text = EN_LYRICS if lang == "en" else PIDGIN_LYRICS
-    lyrics_msg = await bot.send_message(chat_id=user_id, text=lyrics_text, parse_mode=ParseMode.HTML)
+    lyrics_msg = await bot.send_message(chat_id=user_id, text=lyrics_text, parse_mode="HTML")
     session["to_wipe"].append(lyrics_msg.message_id)
 
-    instructions_msg = await bot.send_message(chat_id=user_id, text=INSTRUCTIONS, reply_markup=listening_keyboard(cfg["duration"]))
+    instructions_msg = await bot.send_message(chat_id=user_id, text=INSTRUCTIONS, reply_markup=listening_keyboard(cfg["duration"]), parse_mode="MarkdownV2")
     session["to_wipe"].append(instructions_msg.message_id)
     session["control_msg_id"] = instructions_msg.message_id
 
-@dp.callback_query(F.data == "unlock")
-async def on_unlock(cb: CallbackQuery) -> None:
-    user_id = cb.from_user.id
+@bot.callback_query_handler(func=lambda call: call.data == "unlock")
+async def on_unlock(call):
+    user_id = call.from_user.id
     session = USER_SESSIONS.get(user_id)
     if not session or session.get("lang") is None:
-        await cb.answer("Session expired. Please /start again.", show_alert=True)
+        await bot.answer_callback_query(call.id, text="Session expired. Please /start again.", show_alert=True)
         return
     remaining = secs_left(session)
     if remaining > 0:
-        await cb.answer(f"🔒 Please listen fully to unlock the Sanctuary.\n⏳ ({remaining} seconds remaining).", show_alert=True)
+        await bot.answer_callback_query(call.id, text=f"🔒 Please listen fully to unlock the Sanctuary.\n⏳ ({remaining} seconds remaining).", show_alert=True)
         return
-    await cb.answer("✅ Playback verified!", show_alert=True)
+    await bot.answer_callback_query(call.id, text="✅ Playback verified!", show_alert=True)
     try:
-        await bot.edit_message_text(chat_id=user_id, message_id=session["control_msg_id"], text=COMPLETE_TEXT, reply_markup=done_keyboard(), parse_mode=ParseMode.MARKDOWN_V2)
+        await bot.edit_message_text(chat_id=user_id, message_id=session["control_msg_id"], text=COMPLETE_TEXT, reply_markup=done_keyboard(), parse_mode="MarkdownV2")
     except Exception:
         pass
 
-@dp.callback_query(F.data == "confirm")
-async def on_confirm(cb: CallbackQuery) -> None:
-    user_id = cb.from_user.id
+@bot.callback_query_handler(func=lambda call: call.data == "confirm")
+async def on_confirm(call):
+    user_id = call.from_user.id
     session = USER_SESSIONS.get(user_id)
     if not session or session.get("lang") is None:
-        await cb.answer("Session expired. Please /start again.", show_alert=True)
+        await bot.answer_callback_query(call.id, text="Session expired. Please /start again.", show_alert=True)
         return
     if secs_left(session) > 0:
-        await cb.answer("🔒 Security error. Tracking time metrics incomplete.", show_alert=True)
+        await bot.answer_callback_query(call.id, text="🔒 Security error. Tracking time metrics incomplete.", show_alert=True)
         return
-    await cb.answer("Processing absolute clean sweep wipe...")
+    await bot.answer_callback_query(call.id, text="Processing absolute clean sweep wipe...")
     for msg_id in session.get("to_wipe", []):
         try:
             await bot.delete_message(chat_id=user_id, message_id=msg_id)
         except Exception:
             pass
         await asyncio.sleep(0.05)
-    await bot.send_message(chat_id=user_id, text=PHASE2_TEXT, parse_mode=ParseMode.MARKDOWN_V2)
+    await bot.send_message(chat_id=user_id, text=PHASE2_TEXT, parse_mode="MarkdownV2")
     USER_SESSIONS.pop(user_id, None)
 
-@dp.callback_query(F.data == "noop")
-async def on_noop(cb: CallbackQuery) -> None:
-    await cb.answer()
+@bot.callback_query_handler(func=lambda call: call.data == "noop")
+async def on_noop(call):
+    await bot.answer_callback_query(call.id)
 
-async def main() -> None:
-    log.info("Native Background Engine spinning up...")
-    # Explicitly clear hook cache and flush conflicts instantly on startup
-    await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
+# --- WEB HEALTH SERVER ---
+async def health_handler(request):
+    return web.Response(text="Server Online.")
 
-if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
-        pass
+async def start_web_server():
+    app = web.Application()
+    app.router.add_get("/", health_handler)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.getenv("PORT", "10000"))
+    site = web.TCPSite(runner, "0.0.0.0", port)
