@@ -7,7 +7,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.exceptions import TelegramRetryAfter, TelegramBadRequest
+from aiogram.exceptions import TelegramRetryAfter
 from aiohttp import web
 
 # --- LOGGING SETUP ---
@@ -17,7 +17,7 @@ log = logging.getLogger("repellano")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8642428323:AAHO71GubQl4kvAIeT1dpI_NA2gsqKGS8eI").strip()
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@RDSTracks")
 
-# UI refresh cadence to protect your free server instance against Telegram Flood limits.
+# UI refresh rhythm to completely bypass Telegram Flood limits on a free server instance.
 TICK = 5 
 
 CONFIGS = {
@@ -91,7 +91,7 @@ def listening_keyboard(remaining: int) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text=f"🔒 Unlock Sanctuary ({remaining}s)", callback_data="unlock")],
     ])
 
-# --- DYNAMIC BACKGROUND LOUD COUNTDOWN ENGINE ---
+# --- DYNAMIC BACKGROUND COUNTDOWN ENGINE ---
 async def run_countdown(user_id: int, message_id: int, duration: int) -> None:
     start_time = time.time()
     end_time = start_time + duration
@@ -99,7 +99,6 @@ async def run_countdown(user_id: int, message_id: int, duration: int) -> None:
     while True:
         await asyncio.sleep(TICK)
         session = USER_SESSIONS.get(user_id)
-        # Verify the session is still valid and has not been restarted
         if not session or session.get("task") != asyncio.current_task():
             break
 
@@ -108,7 +107,6 @@ async def run_countdown(user_id: int, message_id: int, duration: int) -> None:
         session["remaining"] = remaining
 
         if remaining <= 0:
-            # Staging boundary text for Step 4 complete state
             await safe_edit(
                 chat_id=user_id,
                 message_id=message_id,
@@ -130,7 +128,6 @@ async def cmd_start(message: Message) -> None:
     user_id = message.from_user.id
     name = message.from_user.first_name or "Leno"
 
-    # Reset tracking handles cleanly if executed concurrently
     old = USER_SESSIONS.pop(user_id, None)
     if old and old.get("task") and not old["task"].done():
         old["task"].cancel()
@@ -141,7 +138,7 @@ async def cmd_start(message: Message) -> None:
     greeting = await message.answer(text=GREETING.format(name=name), reply_markup=lang_keyboard())
     session["to_wipe"].append(greeting.message_id)
 
-# --- STEP 2 CUSTOM SELECTION FORK ---
+# --- STEP 2 CUSTOM SELECTION HANDLER ---
 @dp.callback_query(F.data.startswith("lang:"))
 async def on_lang(cb: CallbackQuery) -> None:
     lang = cb.data.split(":", 1)[1]
@@ -158,7 +155,6 @@ async def on_lang(cb: CallbackQuery) -> None:
     session["remaining"] = cfg["duration"]
     session["end_time"] = time.time() + cfg["duration"]
 
-    # 1. Load track copy from storage base
     try:
         audio_msg = await bot.copy_message(chat_id=user_id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"])
         session["to_wipe"].append(audio_msg.message_id)
@@ -167,19 +163,16 @@ async def on_lang(cb: CallbackQuery) -> None:
         await cb.message.answer("⚠️ Could not load track audio. Confirm permissions configuration.")
         return
 
-    # 2. Print localized lyrics card layout
     lyrics_text = EN_LYRICS if lang == "en" else PIDGIN_LYRICS
     lyrics_msg = await cb.message.answer(text=lyrics_text)
     session["to_wipe"].append(lyrics_msg.message_id)
 
-    # 3. Print main instruction interface 
     instructions_msg = await cb.message.answer(text=INSTRUCTIONS, reply_markup=listening_keyboard(cfg["duration"]))
     session["to_wipe"].append(instructions_msg.message_id)
 
-    # 4. Fire localized non-blocking user countdown thread worker task
     session["task"] = asyncio.create_task(run_countdown(user_id, instructions_msg.message_id, cfg["duration"]))
 
-# --- STEP 3 ANTI-CHEAT INTERLOCK SECURE POPUP ---
+# --- STEP 3 ANTI-CHEAT INTERLOCK SECURE POPUP (Spaces Fixed) ---
 @dp.callback_query(F.data == "unlock")
 async def on_unlock(cb: CallbackQuery) -> None:
     user_id = cb.from_user.id
@@ -189,7 +182,6 @@ async def on_unlock(cb: CallbackQuery) -> None:
         await cb.answer("Session expired. Please execute /start.", show_alert=True)
         return
 
-    # Calculate real-time down-to-the-second precise remaining durations dynamically 
     if session.get("end_time", 0) > 0:
         now = time.time()
         remaining = int(max(0, session["end_time"] - now))
@@ -198,3 +190,16 @@ async def on_unlock(cb: CallbackQuery) -> None:
         remaining = session.get("remaining", 0)
 
     if remaining > 0:
+        await cb.answer(
+            f"🔒 Please listen fully to unlock the Sanctuary.\n({remaining} seconds remaining).", 
+            show_alert=True
+        )
+    else:
+        await cb.answer("Playback verification check complete! Proceeding to validation state...", show_alert=True)
+
+@dp.callback_query(F.data == "noop")
+async def on_noop(cb: CallbackQuery) -> None:
+    await cb.answer()
+
+# --- WEB FRAMEWORK PORTS ---
+async def health(_: web.Request) -> web.Response:
