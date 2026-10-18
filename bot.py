@@ -1,61 +1,61 @@
 import os
 import logging
-from aiogram import Bot, Dispatcher, F
+from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiohttp import web
 
-# --- LOGGING ---
+# --- LOGGING SETUP ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 log = logging.getLogger("repellano")
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8642428323:AAHO71GubQl4kvAIeT1dpI_NA2gsqKGS8eI").strip()
 
-# --- CONFIGURATION FOR STEP 1 ---
-# This exact layout matches your concept criteria. Note the "Dear {name}" correction!
+# --- STEP 1 TEXT LAYOUT (Forced Markdown Mode) ---
+# Wrapping a variable in asterisks (*) makes it completely bold in standard Markdown.
 GREETING = (
-    "Welcome, Dear <b>{name}</b>!\n\n"
-    "To begin, take the first step. Choose your language version "
-    "below to enjoy the Sanctuary's Anthem."
+    "Welcome, Dear *{name}*\!\n\n"
+    "To begin, take the first step\. Choose your language version "
+    "below to enjoy the Sanctuary's Anthem\."
 )
 
 USER_SESSIONS: dict[int, dict] = {}
 
-# CRITICAL FIX: We declare the Default HTML parse mode explicitly inside the bot constructor properties.
-bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+# Globally configure the bot engine instance to read standard Markdown format properties
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
 dp = Dispatcher()
 
-# --- KEYBOARD FOR STEP 1 ---
+# --- STEP 1 LAYOUT KEYBOARD ---
 def lang_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎧 English Version", callback_data="lang:en")],
         [InlineKeyboardButton(text="🎧 Pidgin Version",  callback_data="lang:pidgin")],
     ])
 
-# --- /start COMMAND TRIGGER ---
+# --- /start COMMAND ROUTE ---
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     user_id = message.from_user.id
     name = message.from_user.first_name or "Leno"
 
-    # Initialize user session storage cleanly
+    # Isolate user mapping parameters to support Step 5 multiple concurrent runs
     session = {"lang": None, "to_wipe": [], "task": None, "remaining": 0}
     USER_SESSIONS[user_id] = session
 
-    # Send the greeting message using the forced HTML parameters
+    # Post greeting explicitly with Markdown rules enforced
     greeting = await message.answer(
         text=GREETING.format(name=name),
-        reply_markup=lang_keyboard()
+        reply_markup=lang_keyboard(),
+        parse_mode=ParseMode.MARKDOWN_V2
     )
     
-    # Store this ID so we can wipe it later in Step 4
     session["to_wipe"].append(greeting.message_id)
 
-# --- MINIMAL HEALTH SERVER FOR RENDER ---
+# --- WEB STATUS SERVER ROUTINES ---
 async def health(_: web.Request) -> web.Response:
-    return web.Response(text="Step 1 Server Alive.")
+    return web.Response(text="Status: Active.")
 
 async def start_web() -> None:
     app = web.Application()
@@ -65,14 +65,18 @@ async def start_web() -> None:
     port = int(os.getenv("PORT", "8080"))
     await web.TCPSite(runner, "0.0.0.0", port).start()
 
+# --- EXECUTION SYSTEM ---
 async def main() -> None:
     await start_web()
+    log.info("Starting up service polling...")
     await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(dp)
+    
+    # CRITICAL ARCHITECTURAL FIX: Pass 'bot' object here to stop the 'Dispatcher' crash completely
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
     import asyncio
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
-        pass
+        log.info("Server terminated cleanly.")
