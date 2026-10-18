@@ -17,7 +17,7 @@ log = logging.getLogger("repellano")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8642428323:AAHO71GubQl4kvAIeT1dpI_NA2gsqKGS8eI").strip()
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@RDSTracks")
 
-# UI refresh rhythm to completely bypass Telegram Flood limits on a free server instance.
+# UI refresh rhythm to bypass Telegram Flood limits on a free tier instance.
 TICK = 5 
 
 CONFIGS = {
@@ -46,7 +46,7 @@ PIDGIN_LYRICS = (
     "📜 *Repellano Anthem \(Pidgin Lyrics\)*\n\n"
     "*\[Intro\]*\nWelcome to the Sanctuary\.\nWhere jaga jaga forex markets find their perfect peace\.\nThis na Semleno Repellano Digital Sanctuary\.\n\n"
     "*\[Verse 1\]*\nThe world market dey spin anyhow, e no dey stop\nForex trading sharp well\-well, things just dey pop\nBut inside this Sanctuary, the vision clear pass glass\nWe dey commot the confusion, make the fear join pass\nWe dey change heavy lodu simple tool for everybody\.\n\n"
-    "*\[Chorus\]*\nE simple\. E dey run on own\. E dey for everyone\.\nThirty\-five FSSOs, the tech don change the run\!\nPower dey for everybody, no matter where you start from\nRepellano oh, oh, oh every single heart\!\nEvery single heart\nEvery single heart\n\n"
+    "*\[Chorus\]*\nE simple\. E dey run on own\. E dey for everyone\.\nThirty\-five FSSOs, the tech don change the run\!\nPower dey for everybody, no matter where you start from\nRepellano oh, oh, oh every single heart\!\nEvery single heart\nEvery single heart\nEvery single heart\n\n"
     "*\[Verse 2\]*\nThe whole setup dey here to change how things suppose to be\nWhere math and market jam, things arrange properly\nThe system solid well\-well, e smooth and e deep\nE dey work sharp\-sharp inside silence when the world dey sleep\.\n\n"
     "*\[Verse 3\]*\nThirty\-five FSSOs stand gidigba, everything set well\nFinancial Support Service Offerings, na him we call FSSOs\nAutomated tools wey no dey tire or lose face\nTo support everybody wey dey struggle hard to find small money\n\n"
     "*\[Chorus\]*\nSimple\. Automated\. Universal\.\nThirty\-five FSSOs, the tech reversal\!\nFinancial power for you, no matter where you start\nRepellano oh, oh, oh every single heart\!\nEvery single heart\nEvery single heart\n\n"
@@ -63,7 +63,7 @@ USER_SESSIONS: dict[int, dict] = {}
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
 dp = Dispatcher()
 
-# --- SECURITY INTERFACE UTILITIES ---
+# --- SECURITY UTILITIES ---
 async def safe_edit(chat_id: int, message_id: int, text: str, markup) -> None:
     try:
         await bot.edit_message_text(chat_id=chat_id, message_id=message_id, 
@@ -91,7 +91,7 @@ def listening_keyboard(remaining: int) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text=f"🔒 Unlock Sanctuary ({remaining}s)", callback_data="unlock")],
     ])
 
-# --- DYNAMIC BACKGROUND COUNTDOWN ENGINE ---
+# --- BACKGROUND COUNTDOWN ENGINE ---
 async def run_countdown(user_id: int, message_id: int, duration: int) -> None:
     start_time = time.time()
     end_time = start_time + duration
@@ -122,7 +122,7 @@ async def run_countdown(user_id: int, message_id: int, duration: int) -> None:
                 markup=listening_keyboard(remaining)
             )
 
-# --- /start COMMAND ROUTE ---
+# --- COMMAND ROUTE ---
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     user_id = message.from_user.id
@@ -138,7 +138,7 @@ async def cmd_start(message: Message) -> None:
     greeting = await message.answer(text=GREETING.format(name=name), reply_markup=lang_keyboard())
     session["to_wipe"].append(greeting.message_id)
 
-# --- STEP 2 CUSTOM SELECTION HANDLER ---
+# --- CUSTOM CALLBACK HANDLERS ---
 @dp.callback_query(F.data.startswith("lang:"))
 async def on_lang(cb: CallbackQuery) -> None:
     lang = cb.data.split(":", 1)[1]
@@ -172,7 +172,6 @@ async def on_lang(cb: CallbackQuery) -> None:
 
     session["task"] = asyncio.create_task(run_countdown(user_id, instructions_msg.message_id, cfg["duration"]))
 
-# --- STEP 3 ANTI-CHEAT INTERLOCK SECURE POPUP ---
 @dp.callback_query(F.data == "unlock")
 async def on_unlock(cb: CallbackQuery) -> None:
     user_id = cb.from_user.id
@@ -195,13 +194,15 @@ async def on_unlock(cb: CallbackQuery) -> None:
             show_alert=True
         )
     else:
-        await cb.answer("Playback verification check complete! Proceeding to validation state...", show_alert=True)
+        await cb.answer("Playback verification check complete!", show_alert=True)
 
 @dp.callback_query(F.data == "noop")
 async def on_noop(cb: CallbackQuery) -> None:
     await cb.answer()
 
-# --- WEB FRAMEWORK PORTS ---
+# --- WEB WORKER ASYNC INTERFACE ROUTINES ---
 async def health(_: web.Request) -> web.Response:
-    return web.Response(text="Step 3 Alive.")
+    return web.Response(text="Server Active.")
 
+# --- INITIATION ROUTINE SYSTEM ---
+async def main() -> None:
