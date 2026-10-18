@@ -1,5 +1,5 @@
 # bot.py
-# Compiled & Optimized Production Script for Render Free Tier
+# Corrected Production Script for Repellano Onboarding Flow - Render Free Tier
 
 """
 Repellano "Anthem Onboarding Flow" — Telegram bot (aiogram 3.x)
@@ -12,7 +12,6 @@ import os
 import logging
 import time
 from aiogram import Bot, Dispatcher, F
-from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
@@ -27,13 +26,11 @@ log = logging.getLogger("repellano")
 # --- CONFIGURATION & ENV VARIABLES ---
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 if not BOT_TOKEN:
-    # Safe fallback token provided in your example parts
     BOT_TOKEN = "8642428323:AAHO71GubQl4kvAIeT1dpI_NA2gsqKGS8eI"
 
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@RDSTracks")
 
-# Optimization: Edits the text layout every 5 seconds to fully protect against Telegram FloodWait rate limits.
-# Popups still track your countdown precisely down to the exact second in real-time.
+# UI update rhythm to protect your account against Telegram FloodWait bans.
 TICK = 5 
 
 CONFIGS = {
@@ -63,8 +60,9 @@ PIDGIN_LYRICS = (
     "<b>[Outro]</b>\nThe Digital Sanctuary.\nWe don build, we don automate, we wan rise.\n[Fade Out][End]"
 )
 
+# Corrected layout phrase matching your exact step-by-step documentation rules
 GREETING = (
-    "Welcome, <b>{name}!</b>\n\n"
+    "Welcome, Dear <b>{name}</b>!\n\n"
     "To begin, take the first step. Choose your language version "
     "below to enjoy the Sanctuary's Anthem."
 )
@@ -82,42 +80,38 @@ PHASE2_TEXT = (
     "across all related domains. Welcome aboard your onboarding journey!\n"
 )
 
-# --- GLOBAL IN-MEMORY SESSION DICTIONARY (Simultaneous Users Isolated Storage) ---
-USER_SESSIONS: dict[int, dict] = {}   # user_id -> session dict
+# --- ISOLATED SESSION CONFIGURATION (Step 5 Multi-user isolation) ---
+USER_SESSIONS: dict[int, dict] = {}
 
-bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# --- SAFE API HELPERS ---
+# --- SECURITY HANDLERS ---
 async def safe_delete(chat_id: int, message_id: int) -> None:
     try:
         await bot.delete_message(chat_id=chat_id, message_id=message_id)
-    except TelegramBadRequest as e:
-        log.debug("delete skipped (%s,%s): %s", chat_id, message_id, e)
     except Exception as e:
-        log.warning("delete failed (%s,%s): %s", chat_id, message_id, e)
+        log.debug("Delete failed safely for msg %s: %s", message_id, e)
 
 async def safe_edit(chat_id: int, message_id: int, text: str, markup) -> None:
     try:
-        await bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=text, reply_markup=markup)
+        await bot.edit_message_text(chat_id=chat_id, message_id=message_id, 
+                                    text=text, reply_markup=markup, parse_mode=ParseMode.HTML)
     except TelegramRetryAfter as e:
-        log.warning("FloodWait %ss -> backing off", e.retry_after)
         await asyncio.sleep(e.retry_after)
         try:
-            await bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=text, reply_markup=markup)
-        except Exception as e2:
-            log.debug("edit retry failed: %s", e2)
-    except TelegramBadRequest as e:
-        if "not modified" not in str(e).lower():
-            log.debug("edit skipped: %s", e)
+            await bot.edit_message_text(chat_id=chat_id, message_id=message_id, 
+                                        text=text, reply_markup=markup, parse_mode=ParseMode.HTML)
+        except Exception:
+            pass
     except Exception as e:
-        log.warning("edit failed: %s", e)
+        log.debug("Edit skipped safely: %s", e)
 
 def track(session: dict, message_id: int) -> None:
     if message_id not in session["to_wipe"]:
         session["to_wipe"].append(message_id)
 
-# --- KEYBOARDS ---
+# --- KEYBOARD MARKUPS ---
 def lang_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎧 English Version", callback_data="lang:en")],
@@ -136,7 +130,7 @@ def done_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_data="confirm")],
     ])
 
-# --- BACKGROUND COUNTDOWN TASK ---
+# --- BACKGROUND COUNTDOWN ENGINE ---
 async def run_countdown(user_id: int, lang: str, message_id: int, duration: int) -> None:
     start_time = time.time()
     end_time = start_time + duration
@@ -168,13 +162,13 @@ async def run_countdown(user_id: int, lang: str, message_id: int, duration: int)
                 markup=listening_keyboard(lang, remaining)
             )
 
-# --- TELEGRAM EVENT HANDLERS ---
+# --- TELEGRAM INBOUND TRIGGERS ---
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     user_id = message.from_user.id
-    name = message.from_user.first_name or "Friend"
+    name = message.from_user.first_name or "Leno"
 
-    # Deep reset: If user runs /start again, wipe previous floating cards completely
+    # Pristine Wipe if user restarts the process unexpectedly mid-way
     old = USER_SESSIONS.pop(user_id, None)
     if old:
         if old.get("task") and not old["task"].done():
@@ -182,14 +176,31 @@ async def cmd_start(message: Message) -> None:
         for mid in old.get("to_wipe", []):
             await safe_delete(user_id, mid)
 
-    session = {"lang": None, "to_wipe": [], "task": None, "remaining": 0, "control_id": None}
+    session = {"lang": None, "to_wipe": [], "task": None, "remaining": 0, "control_id": None, "end_time": 0}
     USER_SESSIONS[user_id] = session
 
-    greeting = await message.answer(GREETING.format(name=name), reply_markup=lang_keyboard())
+    # Fixed: Force parse_mode="HTML" explicitly inside the method call to fix name formatting bug
+    greeting = await message.answer(
+        GREETING.format(name=name), 
+        reply_markup=lang_keyboard(),
+        parse_mode=ParseMode.HTML
+    )
     track(session, greeting.message_id)
 
 @dp.callback_query(F.data.startswith("lang:"))
 async def on_lang(cb: CallbackQuery) -> None:
     lang = cb.data.split(":", 1)[1]
     if lang not in CONFIGS:
-        await cb.answer("Unknown language choice.", show_alert=True)
+        await cb.answer("Unknown language option chosen.", show_alert=True)
+        return
+
+    user_id = cb.from_user.id
+    session = USER_SESSIONS.get(user_id)
+    if session is None:
+        await cb.answer("Please re-run /start to setup session parameters.", show_alert=True)
+        return
+
+    await cb.answer()
+    cfg = CONFIGS[lang]
+    session["lang"] = lang
+
