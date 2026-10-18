@@ -42,7 +42,7 @@ EN_LYRICS = (
 PIDGIN_LYRICS = (
     "<b>📜 Repellano Anthem (Pidgin Lyrics)</b>\n\n"
     "<b>[Intro]</b>\nWelcome to the Sanctuary.\nWhere jaga jaga forex markets find their perfect peace.\nThis na Semleno Repellano Digital Sanctuary.\n\n"
-    "<b>[Verse 1]</b>\nThe world market dey spin anyhow, e no dey stop\nForex trading sharp well-well, things just dey pop\nBut inside this Sanctuary, the vision clear pass glass\nWe dey commot the confusion, make the fear join pass\nWe dey change heavy lodu to simple tool for everybody.\n\n"
+    "<b>[Verse 1]</b>\nThe world market dey spin anyhow, e no dey stop\nForex trading sharp well-well, things just dey pop\nBut inside this Sanctuary, the vision clear pass glass\nWe dey commot the confusion, make the fear join pass\nWe dey change heavy load to simple tool for everybody.\n\n"
     "<b>[Chorus]</b>\nE simple. E dey run on own. E dey for everyone.\nThirty-five FSSOs, the tech don change the run!\nPower dey for everybody, no matter where you start from\nRepellano oh, oh, oh every single heart!\nEvery single heart\nEvery single heart\nEvery single heart\n\n"
     "<b>[Verse 2]</b>\nThe whole setup dey here to change how things suppose to be\nWhere math and market jam, things arrange properly\nThe system solid well-well, e smooth and e deep\nE dey work sharp-sharp inside silence when the world dey sleep.\n\n"
     "<b>[Verse 3]</b>\nThirty-five FSSOs stand gidigba, everything set well\nFinancial Support Service Offerings, na him we call FSSOs\nAutomated tools wey no dey tire or lose face\nTo support everybody wey dey struggle hard to find small money\n\n"
@@ -55,7 +55,6 @@ INSTRUCTIONS = (
     "🔒 Then, return here and click *Unlock Sanctuary* below\."
 )
 
-# Step 4: The new instruction card header text showing validation status
 COMPLETE_TEXT = (
     "🎉 *Playback Complete\!\n\n"
     "Please tap below to finalize your validation check and unlock the next phase\."
@@ -69,6 +68,7 @@ PHASE2_TEXT = (
     "across all related domains\. Welcome aboard your onboarding journey\!"
 )
 
+# Step 5: Isolated session engine for zero crossing data across users
 USER_SESSIONS: dict[int, dict] = {}
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
@@ -93,7 +93,6 @@ def listening_keyboard(duration: int) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text=f"🔒 Unlock Sanctuary ({duration}s)", callback_data="unlock")],
     ])
 
-# Step 4: The clean stacked buttons layout that replaces the look once listening ends
 def done_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎧 Track Playback Complete", callback_data="noop")],
@@ -169,7 +168,6 @@ async def on_unlock(cb: CallbackQuery) -> None:
         )
         return
 
-    # If timer is complete, change the layout message instantly to Step 4 layout configurations
     await cb.answer("✅ Playback verified!", show_alert=True)
     try:
         await bot.edit_message_text(
@@ -199,12 +197,21 @@ async def on_confirm(cb: CallbackQuery) -> None:
 
     await cb.answer("Processing absolute clean sweep wipe...")
 
-    # The Clean Sweep: Delete the user onboarding footprint completely
     for msg_id in session.get("to_wipe", []):
         try:
             await bot.delete_message(chat_id=user_id, message_id=msg_id)
         except Exception:
             pass
-        await asyncio.sleep(0.05)  # Safe networking pacing delay
+        await asyncio.sleep(0.05)
 
-    # Post Phase 2 onto a perfectly clear screen slate
+    await bot.send_message(chat_id=user_id, text=PHASE2_TEXT, parse_mode=ParseMode.MARKDOWN_V2)
+    USER_SESSIONS.pop(user_id, None)
+
+@dp.callback_query(F.data == "noop")
+async def on_noop(cb: CallbackQuery) -> None:
+    await cb.answer()
+
+# --- WEB WORKER HEALTH ENGINE ---
+async def health_handler(request):
+    return web.Response(text="Server Online.")
+
