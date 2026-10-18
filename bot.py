@@ -172,7 +172,7 @@ async def on_lang(cb: CallbackQuery) -> None:
 
     session["task"] = asyncio.create_task(run_countdown(user_id, instructions_msg.message_id, cfg["duration"]))
 
-# --- STEP 3 ANTI-CHEAT INTERLOCK SECURE POPUP (Spaces Fixed) ---
+# --- STEP 3 ANTI-CHEAT INTERLOCK SECURE POPUP ---
 @dp.callback_query(F.data == "unlock")
 async def on_unlock(cb: CallbackQuery) -> None:
     user_id = cb.from_user.id
