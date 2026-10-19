@@ -51,7 +51,6 @@ PIDGIN_LYRICS = (
     "<b>[Outro]</b>\nThe Digital Sanctuary.\nWe don build, we don automate, we wan rise.\n[Fade Out][End]"
 )
 
-# Step 3 Update: Layout matches duration insertion requirements precisely
 INSTRUCTIONS = (
     "1️⃣ First, click the Play button ▶️ above to listen fully *({duration}s)*\n\n"
     "🔒 Then, return here and click *Unlock Sanctuary* below\."
@@ -70,7 +69,7 @@ PHASE2_TEXT = (
     "across all related domains\. Welcome aboard your onboarding journey\!"
 )
 
-# Step 5: High-Performance Isolation Engine mapping to separate multiple simultaneous data lines cleanly
+# Step 5 Concurrent Isolation Session Dictionary Map
 USER_SESSIONS: dict[int, dict] = {}
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
@@ -85,17 +84,16 @@ def secs_left(session: dict) -> int:
     elapsed = time.monotonic() - play_tapped_at
     return max(0, math.ceil(duration - elapsed))
 
-# --- NAVIGATION INTERFACE KEYBOARDS ---
+# --- NAVIGATION KEYBOARDS ---
 def lang_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎧 English Version", callback_data="lang:en")],
         [InlineKeyboardButton(text="🎧 Pidgin Version",  callback_data="lang:pidgin")],
     ])
 
-def listening_keyboard() -> InlineKeyboardMarkup:
-    # Corrected: Status Row expunged completely. Keeps only your absolute structural tracking lock button row.
+def listening_keyboard(duration: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔒 Unlock Sanctuary", callback_data="unlock")],
+        [InlineKeyboardButton(text=f"🔒 Unlock Sanctuary ({duration}s)", callback_data="unlock")],
     ])
 
 def done_keyboard() -> InlineKeyboardMarkup:
@@ -104,7 +102,7 @@ def done_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_data="confirm")],
     ])
 
-# --- STEP 1: /start COMMAND ROUTE ---
+# --- TELEGRAM COMMANDS & CALLBACKS ---
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     user_id = message.from_user.id
@@ -116,7 +114,6 @@ async def cmd_start(message: Message) -> None:
     greeting = await message.answer(text=GREETING.format(name=name), reply_markup=lang_keyboard())
     session["to_wipe"].append(greeting.message_id)
 
-# --- STEP 2 & 3: LOADING TRACK AUDIO, LYRICS & DURATION TRACKING ---
 @dp.callback_query(F.data.startswith("lang:"))
 async def on_lang(cb: CallbackQuery) -> None:
     lang = cb.data.split(":", 1)[1]
@@ -131,11 +128,8 @@ async def on_lang(cb: CallbackQuery) -> None:
     cfg = CONFIGS[lang]
     session["lang"] = lang
     session["duration"] = cfg["duration"]
-    
-    # Passive Start-time Stamp Logging: Zero background countdown loop overhead
     session["play_tapped_at"] = time.monotonic()
 
-    # 1. Copy Audio Track Message from Channel
     try:
         audio_msg = await bot.copy_message(chat_id=user_id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"])
         session["to_wipe"].append(audio_msg.message_id)
@@ -144,16 +138,14 @@ async def on_lang(cb: CallbackQuery) -> None:
         await cb.message.answer("⚠️ Could not load track audio. Confirm bot channel permissions.")
         return
 
-    # 2. Print Associated Lyrics Text Block
     lyrics_text = EN_LYRICS if lang == "en" else PIDGIN_LYRICS
     lyrics_msg = await bot.send_message(chat_id=user_id, text=lyrics_text, parse_mode=ParseMode.HTML)
     session["to_wipe"].append(lyrics_msg.message_id)
 
-    # 3. Print Instructions Layout with duration value injected natively
     instructions_msg = await bot.send_message(
         chat_id=user_id, 
         text=INSTRUCTIONS.format(duration=cfg["duration"]), 
-        reply_markup=listening_keyboard()
+        reply_markup=listening_keyboard(cfg["duration"])
     )
     session["to_wipe"].append(instructions_msg.message_id)
     session["control_msg_id"] = instructions_msg.message_id
@@ -162,7 +154,6 @@ async def on_lang(cb: CallbackQuery) -> None:
 async def on_noop(cb: CallbackQuery) -> None:
     await cb.answer()
 
-# --- STEP 3 & 4: THE GATEKEEPER & CONTROLLER MORPH INTERLOCK ---
 @dp.callback_query(F.data == "unlock")
 async def on_unlock(cb: CallbackQuery) -> None:
     user_id = cb.from_user.id
@@ -175,7 +166,6 @@ async def on_unlock(cb: CallbackQuery) -> None:
     remaining = secs_left(session)
 
     if remaining > 0:
-        # Dynamic calculation shoulder-tap popup alert matching your exact Step 3 specifications
         await cb.answer(
             f"🔒 Please listen fully to unlock the Sanctuary.\n"
             f"⏳ ({remaining} seconds remaining).", 
@@ -183,8 +173,7 @@ async def on_unlock(cb: CallbackQuery) -> None:
         )
         return
 
-    # Authorized State change occurs here the exact second the tracking interval is achieved
-    await cb.answer("✅ Playback verified! Updating status layouts...", show_alert=True)
+    await cb.answer("✅ Playback verified! Morphing interface dashboard layout...", show_alert=True)
     try:
         await bot.edit_message_text(
             chat_id=user_id,
@@ -196,3 +185,27 @@ async def on_unlock(cb: CallbackQuery) -> None:
     except Exception as e:
         log.error("Layout edit failed: %s", e)
 
+@dp.callback_query(F.data == "confirm")
+async def on_confirm(cb: CallbackQuery) -> None:
+    user_id = cb.from_user.id
+    session = USER_SESSIONS.get(user_id)
+
+    if not session or session.get("lang") is None:
+        await cb.answer("Session expired. Please execute /start to begin.", show_alert=True)
+        return
+
+    remaining = secs_left(session)
+    if remaining > 0:
+        await cb.answer("🔒 Security error. Time runtime constraints unfulfilled.", show_alert=True)
+        return
+
+    await cb.answer("Processing absolute pristine sweep...")
+
+    for msg_id in session.get("to_wipe", []):
+        try:
+            await bot.delete_message(chat_id=user_id, message_id=msg_id)
+        except Exception:
+            pass
+        await asyncio.sleep(0.05)
+
+    session["to_wipe"].clear()
