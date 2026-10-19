@@ -1,17 +1,19 @@
 import os
 import logging
-import time
-import math
 import asyncio
-from telebot.async_telebot import AsyncTeleBot
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram import Bot, Dispatcher, F
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
+from aiogram.filters import CommandStart
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiohttp import web
 
 # --- LOGGING SETUP ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 log = logging.getLogger("repellano")
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8642428323:AAHO71GubQl4kvAIeT1dpI_NA2gsqKGS8eI").strip()
+# --- ENVIRONMENT CONFIGURATIONS ---
+BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@RDSTracks")
 
 CONFIGS = {
@@ -52,133 +54,82 @@ INSTRUCTIONS = (
     "🔒 Then, return here and click *Unlock Sanctuary* below\."
 )
 
-COMPLETE_TEXT = (
-    "🎉 *Playback Complete\!\n\n"
-    "Please tap below to finalize your validation check and unlock the next phase\."
-)
-
-PHASE2_TEXT = (
-    "✅ *Welcome to the Sanctuary\.*\n\n"
-    "📖 *Phase 2: Brief Introduction to Repellano Nigeria Limited \(RNL\)*\n\n"
-    "Repellano Nigeria Limited \(RNL\) is established to drive innovations, "
-    "secure local development opportunities, and provide structural excellence "
-    "across all related domains\. Welcome aboard your onboarding journey\!"
-)
-
 USER_SESSIONS: dict[int, dict] = {}
 
-bot = AsyncTeleBot(BOT_TOKEN)
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
+dp = Dispatcher()
 
-# --- TIME ENGINE ---
-def secs_left(session: dict) -> int:
-    end = session.get("end_time", 0.0)
-    if not end:
-        return 0
-    return max(0, math.ceil(end - time.monotonic()))
-
-# --- KEYBOARDS ---
+# --- STEP 2 NAVIGATION KEYBOARDS ---
 def lang_keyboard() -> InlineKeyboardMarkup:
-    markup = InlineKeyboardMarkup(row_width=1)
-    markup.add(
-        InlineKeyboardButton(text="🎧 English Version", callback_data="lang:en"),
-        InlineKeyboardButton(text="🎧 Pidgin Version",  callback_data="lang:pidgin")
-    )
-    return markup
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🎧 English Version", callback_data="lang:en")],
+        [InlineKeyboardButton(text="🎧 Pidgin Version",  callback_data="lang:pidgin")],
+    ])
 
 def listening_keyboard(duration: int) -> InlineKeyboardMarkup:
-    markup = InlineKeyboardMarkup(row_width=1)
-    markup.add(InlineKeyboardButton(text=f"🔒 Unlock Sanctuary ({duration}s)", callback_data="unlock"))
-    return markup
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"▶️ Now Playing — {duration}s remaining", callback_data="noop")],
+        [InlineKeyboardButton(text=f"🔒 Unlock Sanctuary ({duration}s)", callback_data="unlock")],
+    ])
 
-def done_keyboard() -> InlineKeyboardMarkup:
-    markup = InlineKeyboardMarkup(row_width=1)
-    markup.add(
-        InlineKeyboardButton(text="🎧 Track Playback Complete", callback_data="noop"),
-        InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_data="confirm")
-    )
-    return markup
-
-# --- TELEGRAM ROUTES ---
-@bot.message_handler(commands=['start'])
-async def cmd_start(message):
+# --- STEP 1: /start COMMAND ---
+@dp.message(CommandStart())
+async def cmd_start(message: Message) -> None:
     user_id = message.from_user.id
     name = message.from_user.first_name or "Leno"
-    session = {"lang": None, "to_wipe": [], "remaining": 0, "end_time": 0}
+
+    session = {"lang": None, "to_wipe": []}
     USER_SESSIONS[user_id] = session
-    greeting = await bot.send_message(chat_id=user_id, text=GREETING.format(name=name), reply_markup=lang_keyboard(), parse_mode="MarkdownV2")
+
+    greeting = await message.answer(text=GREETING.format(name=name), reply_markup=lang_keyboard())
     session["to_wipe"].append(greeting.message_id)
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("lang:"))
-async def on_lang(call):
-    lang = call.data.split(":", 1)[1]
-    user_id = call.from_user.id
+# --- STEP 2: LOAD SONG & LYRICS ---
+@dp.callback_query(F.data.startswith("lang:"))
+async def on_lang(cb: CallbackQuery) -> None:
+    lang = cb.data.split(":", 1)[1]
+    user_id = cb.from_user.id
     session = USER_SESSIONS.get(user_id)
+
     if session is None:
-        await bot.answer_callback_query(call.id, text="Please type /start to reset your session.", show_alert=True)
+        await cb.answer("Please type /start to reset your session.", show_alert=True)
         return
-    await bot.answer_callback_query(call.id)
+
+    await cb.answer()
     cfg = CONFIGS[lang]
     session["lang"] = lang
-    session["end_time"] = time.monotonic() + cfg["duration"]
 
+    # 1. Copy Audio Track Message from Channel
     try:
         audio_msg = await bot.copy_message(chat_id=user_id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"])
         session["to_wipe"].append(audio_msg.message_id)
     except Exception as e:
         log.error("Audio copy failed: %s", e)
-        await bot.send_message(chat_id=user_id, text="⚠️ Could not load track audio.")
+        await cb.message.answer("⚠️ Could not load track audio. Confirm bot channel permissions.")
         return
 
+    # 2. Print Lyrics Card Node (Forced HTML Parsing Mode)
     lyrics_text = EN_LYRICS if lang == "en" else PIDGIN_LYRICS
-    lyrics_msg = await bot.send_message(chat_id=user_id, text=lyrics_text, parse_mode="HTML")
+    lyrics_msg = await bot.send_message(chat_id=user_id, text=lyrics_text, parse_mode=ParseMode.HTML)
     session["to_wipe"].append(lyrics_msg.message_id)
 
-    instructions_msg = await bot.send_message(chat_id=user_id, text=INSTRUCTIONS, reply_markup=listening_keyboard(cfg["duration"]), parse_mode="MarkdownV2")
+    # 3. Print Static Instructions Layout Block with Buttons
+    instructions_msg = await bot.send_message(
+        chat_id=user_id, 
+        text=INSTRUCTIONS, 
+        reply_markup=listening_keyboard(cfg["duration"])
+    )
     session["to_wipe"].append(instructions_msg.message_id)
-    session["control_msg_id"] = instructions_msg.message_id
 
-@bot.callback_query_handler(func=lambda call: call.data == "unlock")
-async def on_unlock(call):
-    user_id = call.from_user.id
-    session = USER_SESSIONS.get(user_id)
-    if not session or session.get("lang") is None:
-        await bot.answer_callback_query(call.id, text="Session expired. Please /start again.", show_alert=True)
-        return
-    remaining = secs_left(session)
-    if remaining > 0:
-        await bot.answer_callback_query(call.id, text=f"🔒 Please listen fully to unlock the Sanctuary.\n⏳ ({remaining} seconds remaining).", show_alert=True)
-        return
-    await bot.answer_callback_query(call.id, text="✅ Playback verified!", show_alert=True)
-    try:
-        await bot.edit_message_text(chat_id=user_id, message_id=session["control_msg_id"], text=COMPLETE_TEXT, reply_markup=done_keyboard(), parse_mode="MarkdownV2")
-    except Exception:
-        pass
+@dp.callback_query(F.data == "noop")
+async def on_noop(cb: CallbackQuery) -> None:
+    await cb.answer()
 
-@bot.callback_query_handler(func=lambda call: call.data == "confirm")
-async def on_confirm(call):
-    user_id = call.from_user.id
-    session = USER_SESSIONS.get(user_id)
-    if not session or session.get("lang") is None:
-        await bot.answer_callback_query(call.id, text="Session expired. Please /start again.", show_alert=True)
-        return
-    if secs_left(session) > 0:
-        await bot.answer_callback_query(call.id, text="🔒 Security error. Tracking time metrics incomplete.", show_alert=True)
-        return
-    await bot.answer_callback_query(call.id, text="Processing absolute clean sweep wipe...")
-    for msg_id in session.get("to_wipe", []):
-        try:
-            await bot.delete_message(chat_id=user_id, message_id=msg_id)
-        except Exception:
-            pass
-        await asyncio.sleep(0.05)
-    await bot.send_message(chat_id=user_id, text=PHASE2_TEXT, parse_mode="MarkdownV2")
-    USER_SESSIONS.pop(user_id, None)
+@dp.callback_query(F.data == "unlock")
+async def on_unlock_stub(cb: CallbackQuery) -> None:
+    await cb.answer("🔒 Playback check running... (Step 3 engine paused at retrace checkpoint)", show_alert=True)
 
-@bot.callback_query_handler(func=lambda call: call.data == "noop")
-async def on_noop(call):
-    await bot.answer_callback_query(call.id)
-
-# --- WEB HEALTH SERVER ---
+# --- WEB FRAMEWORK STATUS PORTS ---
 async def health_handler(request):
     return web.Response(text="Server Online.")
 
@@ -189,3 +140,22 @@ async def start_web_server():
     await runner.setup()
     port = int(os.getenv("PORT", "10000"))
     site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    log.info(f"Web server running on port {port}")
+
+async def start_bot_polling():
+    log.info("Launching bot polling engine...")
+    await bot.delete_webhook(drop_pending_updates=True)
+    await dp.start_polling(bot)
+
+async def main():
+    await asyncio.gather(
+        start_web_server(),
+        start_bot_polling()
+    )
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        pass
