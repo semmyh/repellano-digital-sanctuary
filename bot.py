@@ -69,7 +69,7 @@ PHASE2_TEXT = (
     "across all related domains\. Welcome aboard your onboarding journey\!"
 )
 
-# Step 5: Isolated data memory mapping to prevent simultaneous user data crossover
+# Step 5 Concurrent Isolation Session Dictionary Map
 USER_SESSIONS: dict[int, dict] = {}
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
@@ -84,7 +84,7 @@ def secs_left(session: dict) -> int:
     elapsed = time.monotonic() - play_tapped_at
     return max(0, math.ceil(duration - elapsed))
 
-# --- NAVIGATION KEYBOARDS ---
+# --- NAVIGATION INTERFACE KEYBOARDS ---
 def lang_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎧 English Version", callback_data="lang:en")],
@@ -208,3 +208,4 @@ async def on_confirm(cb: CallbackQuery) -> None:
             pass
         await asyncio.sleep(0.05)
 
+    session["to_wipe"].clear()
