@@ -56,20 +56,33 @@ INSTRUCTIONS = (
     "🔒 Then, return here and click *Unlock Sanctuary* below\."
 )
 
+COMPLETE_TEXT = (
+    "🎉 *Playback Verification Complete\!\n\n"
+    "Please tap below to finalize your validation check and unlock the next phase\."
+)
+
+PHASE2_TEXT = (
+    "✅ *Welcome to the Sanctuary\.*\n\n"
+    "📖 *Phase 2: Brief Introduction to Repellano Nigeria Limited \(RNL\)*\n\n"
+    "Repellano Nigeria Limited \(RNL\) is established to drive innovations, "
+    "secure local development opportunities, and provide structural excellence "
+    "across all related domains\. Welcome aboard your onboarding journey\!"
+)
+
+# Step 5: Isolated memory dictionary that separates data strictly per unique user chat context
 USER_SESSIONS: dict[int, dict] = {}
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
 dp = Dispatcher()
 
-# --- HIGH-PRECISION SECURE TIMING LAYOUT ---
+# --- MONOTONIC SECURE TIME CONVERSION ENGINE ---
 def secs_left(session: dict) -> int:
     end = session.get("end_time", 0.0)
     if not end:
         return 0
-    # Uses a high-resolution monotonic interval calculation to fully close the cheat window
     return max(0, math.ceil(end - time.monotonic()))
 
-# --- STEP 2 NAVIGATION KEYBOARDS ---
+# --- NAVIGATION INTERFACE KEYBOARDS ---
 def lang_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎧 English Version", callback_data="lang:en")],
@@ -77,24 +90,31 @@ def lang_keyboard() -> InlineKeyboardMarkup:
     ])
 
 def listening_keyboard(duration: int) -> InlineKeyboardMarkup:
+    # CLEANED OVERVIEW: Merged into your single explicit action button row layout block
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"▶️ Now Playing — {duration}s remaining", callback_data="noop")],
         [InlineKeyboardButton(text=f"🔒 Unlock Sanctuary ({duration}s)", callback_data="unlock")],
     ])
 
-# --- STEP 1: /start COMMAND ---
+def done_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🎧 Track Playback Complete", callback_data="noop")],
+        [InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_data="confirm")],
+    ])
+
+# --- STEP 1: /start COMMAND ROUTE ---
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     user_id = message.from_user.id
     name = message.from_user.first_name or "Leno"
 
+    # Multi-user isolation protection: Reset any existing session array safely for this user alone
     session = {"lang": None, "to_wipe": [], "end_time": 0}
     USER_SESSIONS[user_id] = session
 
     greeting = await message.answer(text=GREETING.format(name=name), reply_markup=lang_keyboard())
     session["to_wipe"].append(greeting.message_id)
 
-# --- STEP 2: LOAD SONG & LYRICS ---
+# --- STEP 2: LOADING TRACK AUDIO & LYRICS ---
 @dp.callback_query(F.data.startswith("lang:"))
 async def on_lang(cb: CallbackQuery) -> None:
     lang = cb.data.split(":", 1)[1]
@@ -108,37 +128,36 @@ async def on_lang(cb: CallbackQuery) -> None:
     await cb.answer()
     cfg = CONFIGS[lang]
     session["lang"] = lang
-    
-    # Store exact reference marker values securely into memory map
     session["end_time"] = time.monotonic() + cfg["duration"]
 
-    # 1. Copy Audio Track Message from Channel
+    # 1. Copy Audio Track Message from Content Repository Channel
     try:
         audio_msg = await bot.copy_message(chat_id=user_id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"])
         session["to_wipe"].append(audio_msg.message_id)
     except Exception as e:
-        log.error("Audio copy failed: %s", e)
+        log.error("Audio copy assignment failure: %s", e)
         await cb.message.answer("⚠️ Could not load track audio. Confirm bot channel permissions.")
         return
 
-    # 2. Print Lyrics Card Node (Forced HTML Parsing Mode)
+    # 2. Print Associated Lyrics Text Block
     lyrics_text = EN_LYRICS if lang == "en" else PIDGIN_LYRICS
     lyrics_msg = await bot.send_message(chat_id=user_id, text=lyrics_text, parse_mode=ParseMode.HTML)
     session["to_wipe"].append(lyrics_msg.message_id)
 
-    # 3. Print Instructions Layout Block with Status Control Buttons
+    # 3. Print Instructions Layout with exact standalone target button row
     instructions_msg = await bot.send_message(
         chat_id=user_id, 
         text=INSTRUCTIONS, 
         reply_markup=listening_keyboard(cfg["duration"])
     )
     session["to_wipe"].append(instructions_msg.message_id)
+    session["control_msg_id"] = instructions_msg.message_id
 
 @dp.callback_query(F.data == "noop")
 async def on_noop(cb: CallbackQuery) -> None:
     await cb.answer()
 
-# --- STEP 3: ON-DEMAND ANTI-CHEAT GATEKEEPER ---
+# --- STEP 3 & 4: THE GATEKEEPER & CONTROLLER MORPH INTERLOCK ---
 @dp.callback_query(F.data == "unlock")
 async def on_unlock(cb: CallbackQuery) -> None:
     user_id = cb.from_user.id
@@ -151,43 +170,34 @@ async def on_unlock(cb: CallbackQuery) -> None:
     remaining = secs_left(session)
 
     if remaining > 0:
-        # Secure shoulder-tap popup notification showing true single-digit remaining seconds instantly
         await cb.answer(
             f"🔒 Please listen fully to unlock the Sanctuary.\n"
             f"⏳ ({remaining} seconds remaining).", 
             show_alert=True
         )
-    else:
-        # Baseline validation path check passed successfully
-        await cb.answer("✅ Playback time completed! Ready to move forward.", show_alert=True)
+        return
 
-# --- WEB FRAMEWORK STATUS PORTS ---
-async def health_handler(request):
-    return web.Response(text="Server Online.")
-
-async def start_web_server():
-    app = web.Application()
-    app.router.add_get("/", health_handler)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    port = int(os.getenv("PORT", "10000"))
-    site = web.TCPSite(runner, "0.0.0.0", port)
-    await site.start()
-    log.info(f"Web server running on port {port}")
-
-async def start_bot_polling():
-    log.info("Launching bot polling engine...")
-    await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
-
-async def main():
-    await asyncio.gather(
-        start_web_server(),
-        start_bot_polling()
-    )
-
-if __name__ == "__main__":
+    # Step 4 Morph: Triggers instantly the absolute moment time validation reaches zero
+    await cb.answer("✅ Playback verified! Updating status layouts...", show_alert=True)
     try:
-        asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
-        pass
+        await bot.edit_message_text(
+            chat_id=user_id,
+            message_id=session["control_msg_id"],
+            text=COMPLETE_TEXT,
+            reply_markup=done_keyboard(),
+            parse_mode=ParseMode.MARKDOWN_V2
+        )
+    except Exception as e:
+        log.error("Layout edit failed: %s", e)
+
+# --- STEP 4: THE IMMACULATE CLEAN SWEEP WIPE ROUTINE ---
+@dp.callback_query(F.data == "confirm")
+async def on_confirm(cb: CallbackQuery) -> None:
+    user_id = cb.from_user.id
+    session = USER_SESSIONS.get(user_id)
+
+    if not session or session.get("lang") is None:
+        await cb.answer("Session expired. Please execute /start to begin.", show_alert=True)
+        return
+
+    remaining = secs_left(session)
