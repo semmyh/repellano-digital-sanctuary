@@ -69,7 +69,7 @@ PHASE2_TEXT = (
     "across all related domains\. Welcome aboard your onboarding journey\!"
 )
 
-# Step 5: Isolated memory dictionary that separates data strictly per unique user chat context
+# Step 5: Isolated data architecture map per user to support simultaneous loops seamlessly
 USER_SESSIONS: dict[int, dict] = {}
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
@@ -90,7 +90,6 @@ def lang_keyboard() -> InlineKeyboardMarkup:
     ])
 
 def listening_keyboard(duration: int) -> InlineKeyboardMarkup:
-    # CLEANED OVERVIEW: Merged into your single explicit action button row layout block
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"🔒 Unlock Sanctuary ({duration}s)", callback_data="unlock")],
     ])
@@ -107,7 +106,6 @@ async def cmd_start(message: Message) -> None:
     user_id = message.from_user.id
     name = message.from_user.first_name or "Leno"
 
-    # Multi-user isolation protection: Reset any existing session array safely for this user alone
     session = {"lang": None, "to_wipe": [], "end_time": 0}
     USER_SESSIONS[user_id] = session
 
@@ -130,13 +128,13 @@ async def on_lang(cb: CallbackQuery) -> None:
     session["lang"] = lang
     session["end_time"] = time.monotonic() + cfg["duration"]
 
-    # 1. Copy Audio Track Message from Content Repository Channel
+    # 1. Copy Audio Track Message from Channel
     try:
         audio_msg = await bot.copy_message(chat_id=user_id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"])
         session["to_wipe"].append(audio_msg.message_id)
     except Exception as e:
         log.error("Audio copy assignment failure: %s", e)
-        await cb.message.answer("⚠️ Could not load track audio. Confirm bot channel permissions.")
+        await cb.message.answer("⚠️ Could not load track audio. Confirm bot channel admin permissions.")
         return
 
     # 2. Print Associated Lyrics Text Block
@@ -177,7 +175,6 @@ async def on_unlock(cb: CallbackQuery) -> None:
         )
         return
 
-    # Step 4 Morph: Triggers instantly the absolute moment time validation reaches zero
     await cb.answer("✅ Playback verified! Updating status layouts...", show_alert=True)
     try:
         await bot.edit_message_text(
@@ -201,3 +198,10 @@ async def on_confirm(cb: CallbackQuery) -> None:
         return
 
     remaining = secs_left(session)
+    if remaining > 0:
+        await cb.answer("🔒 Security error. Time runtime constraints unfulfilled.", show_alert=True)
+        return
+
+    await cb.answer("Triggering synchronized pristine workspace wipe...")
+
+    # Cycle through tracking array and wipe onboarding footprint completely
