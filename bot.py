@@ -69,13 +69,13 @@ PHASE2_TEXT = (
     "across all related domains\. Welcome aboard your onboarding journey\!"
 )
 
-# Step 5 Concurrent Isolation Session Dictionary Map
+# Step 5: Isolated data memory mapping to prevent simultaneous user data crossover
 USER_SESSIONS: dict[int, dict] = {}
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
 dp = Dispatcher()
 
-# --- HIGH-PRECISION PASSIVE TIME CONVERSION ENGINE ---
+# --- MONOTONIC SECURE TIME CONVERSION ENGINE ---
 def secs_left(session: dict) -> int:
     play_tapped_at = session.get("play_tapped_at", 0.0)
     if not play_tapped_at:
@@ -102,7 +102,7 @@ def done_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_data="confirm")],
     ])
 
-# --- TELEGRAM COMMANDS & CALLBACKS ---
+# --- TELEGRAM ACTIONS HANDLERS ---
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     user_id = message.from_user.id
@@ -116,7 +116,7 @@ async def cmd_start(message: Message) -> None:
 
 @dp.callback_query(F.data.startswith("lang:"))
 async def on_lang(cb: CallbackQuery) -> None:
-    lang = cb.data.split(":", 1)[1]
+    lang = cb.data.split(":", 1)
     user_id = cb.from_user.id
     session = USER_SESSIONS.get(user_id)
 
@@ -135,7 +135,7 @@ async def on_lang(cb: CallbackQuery) -> None:
         session["to_wipe"].append(audio_msg.message_id)
     except Exception as e:
         log.error("Audio copy failed: %s", e)
-        await cb.message.answer("⚠️ Could not load track audio. Confirm bot channel permissions.")
+        await cb.message.answer("⚠️ Could not load track audio. Confirm bot channel admin permissions.")
         return
 
     lyrics_text = EN_LYRICS if lang == "en" else PIDGIN_LYRICS
@@ -173,7 +173,7 @@ async def on_unlock(cb: CallbackQuery) -> None:
         )
         return
 
-    await cb.answer("✅ Playback verified! Morphing interface dashboard layout...", show_alert=True)
+    await cb.answer("✅ Playback verified! Updating status layouts...", show_alert=True)
     try:
         await bot.edit_message_text(
             chat_id=user_id,
@@ -208,4 +208,3 @@ async def on_confirm(cb: CallbackQuery) -> None:
             pass
         await asyncio.sleep(0.05)
 
-    session["to_wipe"].clear()
