@@ -7,7 +7,7 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, Update
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiohttp import web
 
 # --- LOGGING SETUP ---
@@ -17,9 +17,6 @@ log = logging.getLogger("repellano")
 # --- ENVIRONMENT CONFIGURATIONS ---
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@RDSTracks")
-
-# The RENDER_EXTERNAL_URL environment variable is automatically provided by Render to read your bot's live address
-RENDER_URL = os.getenv("RENDER_EXTERNAL_URL", "").strip()
 
 CONFIGS = {
     "en":     {"msg_id": 6,  "duration": 240, "title": "English"},
@@ -59,6 +56,7 @@ INSTRUCTIONS = (
     "🔒 Then, return here and click *Unlock Sanctuary* below\."
 )
 
+# Step 4 Layout: Adjusted text update card node indicating successful playback validation
 COMPLETE_TEXT = (
     "🎉 *Playback Verification Complete\!\n\n"
     "Please tap below to finalize your validation check and unlock the next phase\."
@@ -72,20 +70,19 @@ PHASE2_TEXT = (
     "across all related domains\. Welcome aboard your onboarding journey\!"
 )
 
-# Step 5: Isolated data memory mapping to prevent simultaneous user data crossover
 USER_SESSIONS: dict[int, dict] = {}
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
 dp = Dispatcher()
 
-# --- MONOTONIC SECURE TIME CONVERSION ENGINE ---
+# --- MONOTONIC SECURE TIME MODULE ---
 def secs_left(session: dict) -> int:
     end = session.get("end_time", 0.0)
     if not end:
         return 0
     return max(0, math.ceil(end - time.monotonic()))
 
-# --- NAVIGATION KEYBOARDS ---
+# --- STEP 2 NAVIGATION KEYBOARDS ---
 def lang_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎧 English Version", callback_data="lang:en")],
@@ -97,13 +94,14 @@ def listening_keyboard(duration: int) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text=f"🔒 Unlock Sanctuary ({duration}s)", callback_data="unlock")],
     ])
 
+# Step 4 Layout: The brand-new stacked completion buttons layout configuration
 def done_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎧 Track Playback Complete", callback_data="noop")],
         [InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_data="confirm")],
     ])
 
-# --- STEP 1: /start COMMAND ROUTE ---
+# --- STEP 1: /start COMMAND ---
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     user_id = message.from_user.id
@@ -115,7 +113,7 @@ async def cmd_start(message: Message) -> None:
     greeting = await message.answer(text=GREETING.format(name=name), reply_markup=lang_keyboard())
     session["to_wipe"].append(greeting.message_id)
 
-# --- STEP 2: LOADING TRACK AUDIO & LYRICS ---
+# --- STEP 2: LOAD SONG & LYRICS ---
 @dp.callback_query(F.data.startswith("lang:"))
 async def on_lang(cb: CallbackQuery) -> None:
     lang = cb.data.split(":", 1)[1]
@@ -137,15 +135,15 @@ async def on_lang(cb: CallbackQuery) -> None:
         session["to_wipe"].append(audio_msg.message_id)
     except Exception as e:
         log.error("Audio copy failed: %s", e)
-        await cb.message.answer("⚠️ Could not load track audio. Confirm bot channel admin permissions.")
+        await cb.message.answer("⚠️ Could not load track audio. Confirm bot channel permissions.")
         return
 
-    # 2. Print Associated Lyrics Text Block
+    # 2. Print Lyrics Card Node (Forced HTML Parsing Mode)
     lyrics_text = EN_LYRICS if lang == "en" else PIDGIN_LYRICS
     lyrics_msg = await bot.send_message(chat_id=user_id, text=lyrics_text, parse_mode=ParseMode.HTML)
     session["to_wipe"].append(lyrics_msg.message_id)
 
-    # 3. Print Instructions Layout Card with standalone button row
+    # 3. Print Static Instructions Layout Block with Status Control Buttons
     instructions_msg = await bot.send_message(
         chat_id=user_id, 
         text=INSTRUCTIONS, 
@@ -178,7 +176,8 @@ async def on_unlock(cb: CallbackQuery) -> None:
         )
         return
 
-    await cb.answer("✅ Playback verified! Morphing interface dashboard layout...", show_alert=True)
+    # Once the timer passes 0, morph the cards instantly to Step 4 validation complete state
+    await cb.answer("✅ Playback verified! Morphing dashboard layouts...", show_alert=True)
     try:
         await bot.edit_message_text(
             chat_id=user_id,
@@ -188,7 +187,7 @@ async def on_unlock(cb: CallbackQuery) -> None:
             parse_mode=ParseMode.MARKDOWN_V2
         )
     except Exception as e:
-        log.error("Layout morph edit failed: %s", e)
+        log.error("Layout edit failed: %s", e)
 
 # --- STEP 4: THE IMMACULATE CLEAN SWEEP WIPE ---
 @dp.callback_query(F.data == "confirm")
@@ -202,6 +201,6 @@ async def on_confirm(cb: CallbackQuery) -> None:
 
     remaining = secs_left(session)
     if remaining > 0:
-        await cb.answer("🔒 Security calculation error. Duration parameters incomplete.", show_alert=True)
+        await cb.answer("🔒 Security calculation compromise. Time criteria unfulfilled.", show_alert=True)
         return
 
