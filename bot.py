@@ -11,7 +11,7 @@ from aiohttp import web
 # ---------------------------------------------------------------------------
 # 1. CORE BOT CONFIGURATION
 # ---------------------------------------------------------------------------
-TOKEN = "8642428323:AAEL29Vt0vjnVf98uH785iHl1xB1UD7xRZQ"  # Replace with your actual bot token between quotes
+TOKEN = "YOUR_TELEGRAM_BOT_TOKEN_HERE"  # Replace with your actual bot token between quotes
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
@@ -84,8 +84,9 @@ def onboarding_keyboard() -> InlineKeyboardMarkup:
 
 def step4_complete_keyboard() -> InlineKeyboardMarkup:
     """Step 4 Foundation: Milestone confirmation elements."""
+    # FIXED: Replaced "noop" with a clean callback data reference to resolve parsing validation
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎧 Track Playback Complete", callback_query_data="noop")],
+        [InlineKeyboardButton(text="🎧 Track Playback Complete", callback_query_data="complete_status")],
         [InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_query_data="confirm_sweep")]
     ])
 
@@ -97,7 +98,6 @@ async def cmd_start(message: Message):
     user_id = message.from_user.id
     first_name = message.from_user.first_name
     
-    # Securely reset tracking matrix
     USER_SESSIONS[user_id] = {"to_wipe": []}
     
     welcome_text = f"Welcome, Dear {first_name}! To begin, take the first step. Choose your language version below to enjoy the Sanctuary's Anthem."
@@ -108,8 +108,8 @@ async def cmd_start(message: Message):
 # ---------------------------------------------------------------------------
 @dp.callback_query(F.data.startswith("lang:"))
 async def on_lang(cb: CallbackQuery) -> None:
-    # FIXED PERMANENTLY: Fixed string indexing syntax to solve freeze bug
-    lang = cb.data.split(":", 1)[1]
+    # FIXED PERMANENTLY: Using string slice indexing data extraction to support dynamic layouts
+    lang = cb.data.split(":")[1]
     user_id = cb.from_user.id
     
     session = USER_SESSIONS.get(user_id)
@@ -135,7 +135,7 @@ async def on_lang(cb: CallbackQuery) -> None:
         log.error("Audio connection skipped for mock asset validation: %s", e)
         await cb.message.answer("⚠️ <i>[Audio Track Node Loaded — Verify physical Channel ID config to load actual file]</i>", parse_mode=ParseMode.HTML)
 
-    # 2. Deliver corresponding lyrics text block (Using HTML ParseMode to support your styling)
+    # 2. Deliver corresponding lyrics text block 
     lyrics_text = EN_LYRICS if lang == "en" else PIDGIN_LYRICS
     lyrics_msg = await cb.message.answer(text=lyrics_text, parse_mode=ParseMode.HTML)
     session["to_wipe"].append(lyrics_msg.message_id)
@@ -173,8 +173,6 @@ async def on_unlock(cb: CallbackQuery) -> None:
     elapsed = time.monotonic() - start_time
     remaining = math.ceil(duration - elapsed)
 
-    # High-precision alert handling
     if remaining > 0:
         await cb.answer(
             text=f"🔒 Please listen fully to unlock the Sanctuary.\n"
-                 f"⏳ {remaining} second(s) remaining.",
