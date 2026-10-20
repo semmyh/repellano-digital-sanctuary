@@ -11,7 +11,7 @@ from aiohttp import web
 # ---------------------------------------------------------------------------
 # 1. CORE BOT CONFIGURATION
 # ---------------------------------------------------------------------------
-TOKEN = "YOUR_TELEGRAM_BOT_TOKEN_HERE"  # Replace with your actual bot token between quotes
+TOKEN = "8642428323:AAEL29Vt0vjnVf98uH785iHl1xB1UD7xRZQ"  # Replace with your actual bot token between quotes
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
