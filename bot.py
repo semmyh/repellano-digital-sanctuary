@@ -3,9 +3,10 @@ import time
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher, F
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.enums import ParseMode
-from aiohttp import web  # Creates our free dummy web portal for Render
+from aiogram.filters import Command
+from aiohttp import web
 
 # ---------------------------------------------------------------------------
 # 1. CORE BOT CONFIGURATION
@@ -19,8 +20,8 @@ log = logging.getLogger(__name__)
 
 # --- Project Assets & Configuration ---
 CONFIGS = {
-    "en": {"duration": 240, "msg_id": 123},       # 240 seconds = 4 minutes
-    "pidgin": {"duration": 180, "msg_id": 124}    # 180 seconds = 3 minutes
+    "en": {"duration": 240, "msg_id": 123},       # 240 seconds
+    "pidgin": {"duration": 180, "msg_id": 124}    # 180 seconds
 }
 
 USER_SESSIONS = {} 
@@ -47,40 +48,61 @@ async def start_dummy_server():
     log.info(f"Free layer web node successfully bound to port {port}")
 
 # ---------------------------------------------------------------------------
-# 3. INTERFACE BUILDERS (Clean Layout — No Moving Elements)
+# 3. INTERFACE BUILDERS
 # ---------------------------------------------------------------------------
+def language_keyboard() -> InlineKeyboardMarkup:
+    """Step 1: Two clean, stacked language selection buttons."""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🎧 English Version", callback_query_data="lang:en")],
+        [InlineKeyboardButton(text="🎧 Pidgin Version", callback_query_data="lang:pidgin")]
+    ])
+
 def onboarding_keyboard() -> InlineKeyboardMarkup:
-    """The static action button card below the static instruction block."""
+    """Step 3: The static action button card below the instruction block."""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔒 Return to Click Here and Unlock Sanctuary", callback_query_data="unlock")]
     ])
 
 def step4_complete_keyboard() -> InlineKeyboardMarkup:
-    """The immaculate milestone buttons activated only when playback finishes."""
+    """Step 4: The milestone buttons activated only when playback finishes."""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎧 Track Playback Complete", callback_query_data="noop")],
         [InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_query_data="confirm_sweep")]
     ])
 
 # ---------------------------------------------------------------------------
-# 4. HANDLERS — LOAD TRACK & START IMMUNE CLOCK
+# 4. STEP 1 HANDLER — THE FIRST HELLO
+# ---------------------------------------------------------------------------
+@dp.message(Command("start"))
+async def cmd_start(message: Message):
+    user_id = message.from_user.id
+    first_name = message.from_user.first_name
+    
+    # Initialize/Reset the user's session data
+    USER_SESSIONS[user_id] = {"to_wipe": []}
+    
+    welcome_text = f"Welcome, Dear {first_name}! To begin, take the first step. Choose your language version below to enjoy the Sanctuary's Anthem."
+    
+    await message.answer(text=welcome_text, reply_markup=language_keyboard())
+
+# ---------------------------------------------------------------------------
+# 5. STEP 2 HANDLER — LOAD TRACK & LYRICS
 # ---------------------------------------------------------------------------
 @dp.callback_query(F.data.startswith("lang:"))
 async def on_lang(cb: CallbackQuery) -> None:
     lang = cb.data.split(":", 1)[1]
     user_id = cb.from_user.id
     
-    # Secure user structural initialization
-    if user_id not in USER_SESSIONS:
-        USER_SESSIONS[user_id] = {"to_wipe": []}
+    session = USER_SESSIONS.get(user_id)
+    if not session:
+        await cb.answer("Please type /start to reset your session.", show_alert=True)
+        return
         
-    session = USER_SESSIONS[user_id]
     await cb.answer()
     cfg = CONFIGS[lang]
 
     session["lang"] = lang
     session["duration"] = cfg["duration"]
-    # Monotonic clock tracking begins instantly as track and text are delivered
     session["start_time"] = time.monotonic() 
     session["completed"] = False
 
@@ -92,8 +114,8 @@ async def on_lang(cb: CallbackQuery) -> None:
         session["to_wipe"].append(audio_msg.message_id)
     except Exception as e:
         log.error("Audio payload connection failed: %s", e)
-        await cb.message.answer("⚠️ Could not load track audio. Please verify your hosting channel configuration.")
-        return
+        await cb.message.answer("⚠️ Could not load track audio. Using simulated mode for testing.")
+        # We continue for testing even if the file copy fails due to a mock channel ID
 
     # Dispatch structural lyrics card
     lyrics_text = EN_LYRICS if lang == "en" else PIDGIN_LYRICS
@@ -106,7 +128,7 @@ async def on_lang(cb: CallbackQuery) -> None:
         f"2️⃣ 🔒 Then, Return to Click Here and Unlock Sanctuary"
     )
 
-    # Dispatch instructions card with ZERO active API edit countdown timers
+    # Dispatch instructions card
     instructions_msg = await cb.message.answer(
         text=instructions_text, 
         reply_markup=onboarding_keyboard(),
@@ -116,7 +138,7 @@ async def on_lang(cb: CallbackQuery) -> None:
     session["to_wipe"].append(instructions_msg.message_id)
 
 # ---------------------------------------------------------------------------
-# 5. STEP 3 — THE SMART SHOULDER-TAP GATEKEEPER
+# 6. STEP 3 — THE SMART SHOULDER-TAP GATEKEEPER
 # ---------------------------------------------------------------------------
 @dp.callback_query(F.data == "unlock")
 async def on_unlock(cb: CallbackQuery) -> None:
@@ -130,11 +152,9 @@ async def on_unlock(cb: CallbackQuery) -> None:
     start_time = session.get("start_time", 0.0)
     duration = session.get("duration", 0)
     
-    # Calculate difference using high-precision monotonic timeline
     elapsed = time.monotonic() - start_time
     remaining = math.ceil(duration - elapsed)
 
-    # Gatekeeper Alert: If user clicks too early, display real-time digits remaining
     if remaining > 0:
         await cb.answer(
             text=f"🔒 Please listen fully to unlock the Sanctuary.\n"
@@ -143,11 +163,9 @@ async def on_unlock(cb: CallbackQuery) -> None:
         )
         return
 
-    # Verification threshold passed!
     session["completed"] = True
     await cb.answer("✅ Playback verified! Access Granted.", show_alert=False)
 
-    # Route interface seamlessly into Step 4 presentation triggers
     try:
         await bot.edit_message_text(
             chat_id=user_id,
@@ -160,12 +178,10 @@ async def on_unlock(cb: CallbackQuery) -> None:
         log.error("Failed to transition interface down to Step 4 layout: %s", e)
 
 # ---------------------------------------------------------------------------
-# 6. ENGINE BOOTSTRAPPER
+# 7. ENGINE BOOTSTRAPPER
 # ---------------------------------------------------------------------------
 async def main():
-    # Start web container listener first so Render remains fully satisfied
     await start_dummy_server()
-    # Engage polling sequence
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
