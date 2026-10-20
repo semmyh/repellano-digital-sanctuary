@@ -5,65 +5,72 @@ import logging
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.enums import ParseMode
-from aiohttp import web  # New library to create our free dummy website
+from aiohttp import web  # Creates our free dummy web portal for Render
 
-# 1. ACTUAL BOT SETUP
-TOKEN = "YOUR_TELEGRAM_BOT_TOKEN_HERE"  # Put your actual bot token between these quotes
+# ---------------------------------------------------------------------------
+# 1. CORE BOT CONFIGURATION
+# ---------------------------------------------------------------------------
+TOKEN = "8642428323:AAH64_jnF5le1Tz7XOfVztFHsKiFFLDiTpw"  # Put your actual bot token between these quotes
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
+logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
-# --- Mock Data Structures ---
+# --- Project Assets & Configuration ---
 CONFIGS = {
-    "en": {"duration": 240, "msg_id": 123}, 
-    "pidgin": {"duration": 180, "msg_id": 124}
+    "en": {"duration": 240, "msg_id": 123},       # 240 seconds = 4 minutes
+    "pidgin": {"duration": 180, "msg_id": 124}    # 180 seconds = 3 minutes
 }
+
 USER_SESSIONS = {} 
-CHANNEL_ID = -1001234567890  
-EN_LYRICS = "📜 *Repellano Anthem \\(English Version\\)*\n\nThis is where your English anthem lyrics go\\."
-PIDGIN_LYRICS = "📜 *Repellano Anthem \\(Pidgin Version\\)*\n\nThis is where your Pidgin anthem lyrics go\\."
+CHANNEL_ID = -1001234567890  # Replace with your actual channel ID where tracks are securely stored
+
+EN_LYRICS = "📜 *Repellano Anthem \\(English Version\\)*\n\nThis is where your English anthem lyrics text will be displayed\\."
+PIDGIN_LYRICS = "📜 *Repellano Anthem \\(Pidgin Version\\)*\n\nThis is where your Pidgin anthem lyrics text will be displayed\\."
 
 # ---------------------------------------------------------------------------
-# DUMMY WEBSITE FOR RENDER (Keeps the service completely free!)
+# 2. FREE HOSTING LIFELINE (The Dummy Web Server)
 # ---------------------------------------------------------------------------
 async def handle_ping(request):
-    return web.Response(text="Repellano Sanctuary Bot is Alive!")
+    return web.Response(text="Repellano Sanctuary Engine is Active!")
 
 async def start_dummy_server():
     app = web.Application()
     app.router.add_get('/', handle_ping)
     runner = web.AppRunner(app)
     await runner.setup()
-    # Render tells us which port to open using process.env.PORT (defaults to 10000)
     import os
     port = int(os.environ.get("PORT", 10000))
     site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
-    log.info(f"Dummy web server started on port {port}")
+    log.info(f"Free layer web node successfully bound to port {port}")
 
 # ---------------------------------------------------------------------------
-# KEYBOARDS & INTERFACE BUILDERS
+# 3. INTERFACE BUILDERS (Clean Layout — No Moving Elements)
 # ---------------------------------------------------------------------------
 def onboarding_keyboard() -> InlineKeyboardMarkup:
+    """The static action button card below the static instruction block."""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔒 Return to Click Here and Unlock Sanctuary", callback_query_data="unlock")]
     ])
 
 def step4_complete_keyboard() -> InlineKeyboardMarkup:
+    """The immaculate milestone buttons activated only when playback finishes."""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎧 Track Playback Complete", callback_query_data="noop")],
         [InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_query_data="confirm_sweep")]
     ])
 
 # ---------------------------------------------------------------------------
-# STEP 2 & 3 HANDLER — LOAD TRACK, LYRICS, & INITIALIZE TIME GATE
+# 4. HANDLERS — LOAD TRACK & START IMMUNE CLOCK
 # ---------------------------------------------------------------------------
 @dp.callback_query(F.data.startswith("lang:"))
 async def on_lang(cb: CallbackQuery) -> None:
     lang = cb.data.split(":", 1)[1]
     user_id = cb.from_user.id
     
+    # Secure user structural initialization
     if user_id not in USER_SESSIONS:
         USER_SESSIONS[user_id] = {"to_wipe": []}
         
@@ -73,28 +80,33 @@ async def on_lang(cb: CallbackQuery) -> None:
 
     session["lang"] = lang
     session["duration"] = cfg["duration"]
+    # Monotonic clock tracking begins instantly as track and text are delivered
     session["start_time"] = time.monotonic() 
     session["completed"] = False
 
+    # Dispatch audio asset tracking
     try:
         audio_msg = await bot.copy_message(
             chat_id=user_id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"]
         )
         session["to_wipe"].append(audio_msg.message_id)
     except Exception as e:
-        log.error("Audio execution failed: %s", e)
-        await cb.message.answer("⚠️ Could not load track audio.")
+        log.error("Audio payload connection failed: %s", e)
+        await cb.message.answer("⚠️ Could not load track audio. Please verify your hosting channel configuration.")
         return
 
+    # Dispatch structural lyrics card
     lyrics_text = EN_LYRICS if lang == "en" else PIDGIN_LYRICS
     lyrics_msg = await cb.message.answer(text=lyrics_text, parse_mode=ParseMode.MARKDOWN_V2)
     session["to_wipe"].append(lyrics_msg.message_id)
 
+    # Injecting the dynamic track duration straight into the static guideline card
     instructions_text = (
         f"1️⃣ First, Click Play Button ▶️ Above to Listen Fully \\[{cfg['duration']}s\\]\n\n"
         f"2️⃣ 🔒 Then, Return to Click Here and Unlock Sanctuary"
     )
 
+    # Dispatch instructions card with ZERO active API edit countdown timers
     instructions_msg = await cb.message.answer(
         text=instructions_text, 
         reply_markup=onboarding_keyboard(),
@@ -104,7 +116,7 @@ async def on_lang(cb: CallbackQuery) -> None:
     session["to_wipe"].append(instructions_msg.message_id)
 
 # ---------------------------------------------------------------------------
-# STEP 3 — THE SMART SHOULDER-TAP GATEKEEPER
+# 5. STEP 3 — THE SMART SHOULDER-TAP GATEKEEPER
 # ---------------------------------------------------------------------------
 @dp.callback_query(F.data == "unlock")
 async def on_unlock(cb: CallbackQuery) -> None:
@@ -112,15 +124,17 @@ async def on_unlock(cb: CallbackQuery) -> None:
     session = USER_SESSIONS.get(user_id)
 
     if not session or session.get("lang") is None:
-        await cb.answer("Session expired. Please /start again.", show_alert=True)
+        await cb.answer("Session expired. Please use /start to initialize.", show_alert=True)
         return
 
     start_time = session.get("start_time", 0.0)
     duration = session.get("duration", 0)
     
+    # Calculate difference using high-precision monotonic timeline
     elapsed = time.monotonic() - start_time
     remaining = math.ceil(duration - elapsed)
 
+    # Gatekeeper Alert: If user clicks too early, display real-time digits remaining
     if remaining > 0:
         await cb.answer(
             text=f"🔒 Please listen fully to unlock the Sanctuary.\n"
@@ -129,9 +143,11 @@ async def on_unlock(cb: CallbackQuery) -> None:
         )
         return
 
+    # Verification threshold passed!
     session["completed"] = True
     await cb.answer("✅ Playback verified! Access Granted.", show_alert=False)
 
+    # Route interface seamlessly into Step 4 presentation triggers
     try:
         await bot.edit_message_text(
             chat_id=user_id,
@@ -141,15 +157,15 @@ async def on_unlock(cb: CallbackQuery) -> None:
             parse_mode=ParseMode.MARKDOWN_V2
         )
     except Exception as e:
-        log.error("Failed to morph keyboard down to Step 4: %s", e)
+        log.error("Failed to transition interface down to Step 4 layout: %s", e)
 
 # ---------------------------------------------------------------------------
-# MAIN START COUPLING
+# 6. ENGINE BOOTSTRAPPER
 # ---------------------------------------------------------------------------
 async def main():
-    # Start the web server first so Render gets its port immediately
+    # Start web container listener first so Render remains fully satisfied
     await start_dummy_server()
-    # Then start your Telegram bot listener
+    # Engage polling sequence
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
