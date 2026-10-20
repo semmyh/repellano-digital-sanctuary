@@ -5,35 +5,52 @@ import logging
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.enums import ParseMode
+from aiohttp import web  # New library to create our free dummy website
 
-# 1. ACTUAL BOT SETUP (This fixes the Render deployment crash)
-TOKEN = "8642428323:AAH64_jnF5le1Tz7XOfVztFHsKiFFLDiTpw"  # Put your actual bot token between these quotes
+# 1. ACTUAL BOT SETUP
+TOKEN = "YOUR_TELEGRAM_BOT_TOKEN_HERE"  # Put your actual bot token between these quotes
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
 log = logging.getLogger(__name__)
 
-# --- Mock Data Structures (Replace with your actual values if you have them) ---
+# --- Mock Data Structures ---
 CONFIGS = {
     "en": {"duration": 240, "msg_id": 123}, 
     "pidgin": {"duration": 180, "msg_id": 124}
 }
 USER_SESSIONS = {} 
-CHANNEL_ID = -1001234567890  # Replace with your actual channel ID where audio tracks are hosted
+CHANNEL_ID = -1001234567890  
 EN_LYRICS = "📜 *Repellano Anthem \\(English Version\\)*\n\nThis is where your English anthem lyrics go\\."
 PIDGIN_LYRICS = "📜 *Repellano Anthem \\(Pidgin Version\\)*\n\nThis is where your Pidgin anthem lyrics go\\."
+
+# ---------------------------------------------------------------------------
+# DUMMY WEBSITE FOR RENDER (Keeps the service completely free!)
+# ---------------------------------------------------------------------------
+async def handle_ping(request):
+    return web.Response(text="Repellano Sanctuary Bot is Alive!")
+
+async def start_dummy_server():
+    app = web.Application()
+    app.router.add_get('/', handle_ping)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    # Render tells us which port to open using process.env.PORT (defaults to 10000)
+    import os
+    port = int(os.environ.get("PORT", 10000))
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+    log.info(f"Dummy web server started on port {port}")
 
 # ---------------------------------------------------------------------------
 # KEYBOARDS & INTERFACE BUILDERS
 # ---------------------------------------------------------------------------
 def onboarding_keyboard() -> InlineKeyboardMarkup:
-    """The static action buttons below the instructions text block."""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔒 Return to Click Here and Unlock Sanctuary", callback_query_data="unlock")]
     ])
 
 def step4_complete_keyboard() -> InlineKeyboardMarkup:
-    """The pristine completion state buttons when the sweep is unlocked."""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎧 Track Playback Complete", callback_query_data="noop")],
         [InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_query_data="confirm_sweep")]
@@ -47,7 +64,6 @@ async def on_lang(cb: CallbackQuery) -> None:
     lang = cb.data.split(":", 1)[1]
     user_id = cb.from_user.id
     
-    # Simple session initialization if it doesn't exist
     if user_id not in USER_SESSIONS:
         USER_SESSIONS[user_id] = {"to_wipe": []}
         
@@ -60,7 +76,6 @@ async def on_lang(cb: CallbackQuery) -> None:
     session["start_time"] = time.monotonic() 
     session["completed"] = False
 
-    # 1. Drop Audio Track
     try:
         audio_msg = await bot.copy_message(
             chat_id=user_id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"]
@@ -68,21 +83,18 @@ async def on_lang(cb: CallbackQuery) -> None:
         session["to_wipe"].append(audio_msg.message_id)
     except Exception as e:
         log.error("Audio execution failed: %s", e)
-        await cb.message.answer("⚠️ Could not load track audio. Ensure token and channel configuration are correct.")
+        await cb.message.answer("⚠️ Could not load track audio.")
         return
 
-    # 2. Drop Full Lyrics Text Card
     lyrics_text = EN_LYRICS if lang == "en" else PIDGIN_LYRICS
     lyrics_msg = await cb.message.answer(text=lyrics_text, parse_mode=ParseMode.MARKDOWN_V2)
     session["to_wipe"].append(lyrics_msg.message_id)
 
-    # 3. Dynamic Text Fields Injection
     instructions_text = (
         f"1️⃣ First, Click Play Button ▶️ Above to Listen Fully \\[{cfg['duration']}s\\]\n\n"
         f"2️⃣ 🔒 Then, Return to Click Here and Unlock Sanctuary"
     )
 
-    # 4. Drop Guidelines & Set Gatekeeper Lock Active
     instructions_msg = await cb.message.answer(
         text=instructions_text, 
         reply_markup=onboarding_keyboard(),
@@ -131,8 +143,13 @@ async def on_unlock(cb: CallbackQuery) -> None:
     except Exception as e:
         log.error("Failed to morph keyboard down to Step 4: %s", e)
 
-# Standard entry point to keep the bot alive
+# ---------------------------------------------------------------------------
+# MAIN START COUPLING
+# ---------------------------------------------------------------------------
 async def main():
+    # Start the web server first so Render gets its port immediately
+    await start_dummy_server()
+    # Then start your Telegram bot listener
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
