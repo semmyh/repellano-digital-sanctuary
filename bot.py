@@ -2,6 +2,7 @@ import math
 import time
 import asyncio
 import logging
+import os
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.enums import ParseMode
@@ -9,22 +10,23 @@ from aiogram.filters import Command
 from aiohttp import web
 
 # ---------------------------------------------------------------------------
-# 1. CORE BOT CONFIGURATION
+# 1. CORE SYSTEM INITIALIZATION
 # ---------------------------------------------------------------------------
-TOKEN = "YOUR_TELEGRAM_BOT_TOKEN_HERE"  # Replace with your actual bot token between quotes
+# The system pulls the token from the code string or Render Environment smoothly
+TOKEN = os.environ.get("BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN_HERE")
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
-# --- MILESTONE PERMANENT ASSETS (Locked-In Project Configuration) ---
+# --- MILESTONE LOCKED ASSETS (Restored & Protected Project Configurations) ---
 CONFIGS = {
-    "en": {"duration": 240, "msg_id": 123},       # Track file reference for English
-    "pidgin": {"duration": 180, "msg_id": 124}    # Track file reference for Pidgin
+    "en": {"duration": 240, "msg_id": 123},       # English track payload details
+    "pidgin": {"duration": 180, "msg_id": 124}    # Pidgin track payload details
 }
 
-CHANNEL_ID = -1001234567890  # Your physical Telegram track repository channel ID
+CHANNEL_ID = -1001234567890  # Your physical audio repository channel ID
 USER_SESSIONS = {} 
 
 EN_LYRICS = (
@@ -60,14 +62,13 @@ async def start_dummy_server():
     app.router.add_get('/', handle_ping)
     runner = web.AppRunner(app)
     await runner.setup()
-    import os
     port = int(os.environ.get("PORT", 10000))
     site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
     log.info(f"Free layer web node successfully bound to port {port}")
 
 # ---------------------------------------------------------------------------
-# 3. INTERFACE BUILDERS (Permanent UI Layouts)
+# 3. INTERFACE BUILDERS
 # ---------------------------------------------------------------------------
 def language_keyboard() -> InlineKeyboardMarkup:
     """Step 1 Milestone: Two clean, stacked language selection buttons."""
@@ -84,7 +85,6 @@ def onboarding_keyboard() -> InlineKeyboardMarkup:
 
 def step4_complete_keyboard() -> InlineKeyboardMarkup:
     """Step 4 Foundation: Milestone confirmation elements."""
-    # FIXED: Replaced "noop" with a clean callback data reference to resolve parsing validation
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎧 Track Playback Complete", callback_query_data="complete_status")],
         [InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_query_data="confirm_sweep")]
@@ -98,6 +98,7 @@ async def cmd_start(message: Message):
     user_id = message.from_user.id
     first_name = message.from_user.first_name
     
+    # Initialize the user tracking record
     USER_SESSIONS[user_id] = {"to_wipe": []}
     
     welcome_text = f"Welcome, Dear {first_name}! To begin, take the first step. Choose your language version below to enjoy the Sanctuary's Anthem."
@@ -108,8 +109,8 @@ async def cmd_start(message: Message):
 # ---------------------------------------------------------------------------
 @dp.callback_query(F.data.startswith("lang:"))
 async def on_lang(cb: CallbackQuery) -> None:
-    # FIXED PERMANENTLY: Using string slice indexing data extraction to support dynamic layouts
-    lang = cb.data.split(":")[1]
+    # CLEAN STRING EXTRACTION: Resolving data type formatting issues perfectly
+    lang = cb.data.split(":", 1)[1]
     user_id = cb.from_user.id
     
     session = USER_SESSIONS.get(user_id)
@@ -135,18 +136,18 @@ async def on_lang(cb: CallbackQuery) -> None:
         log.error("Audio connection skipped for mock asset validation: %s", e)
         await cb.message.answer("⚠️ <i>[Audio Track Node Loaded — Verify physical Channel ID config to load actual file]</i>", parse_mode=ParseMode.HTML)
 
-    # 2. Deliver corresponding lyrics text block 
+    # 2. Deliver corresponding lyrics text block
     lyrics_text = EN_LYRICS if lang == "en" else PIDGIN_LYRICS
     lyrics_msg = await cb.message.answer(text=lyrics_text, parse_mode=ParseMode.HTML)
     session["to_wipe"].append(lyrics_msg.message_id)
 
-    # 3. Dynamic layout text compilation
+    # 3. Dynamic instruction field injection
     instructions_text = (
         f"1️⃣ First, Click Play Button ▶️ Above to Listen Fully [{cfg['duration']}s]\n\n"
         f"2️⃣ 🔒 Then, Return to Click Here and Unlock Sanctuary"
     )
 
-    # 4. Deliver Guidelines & Engage Static Lock Structure
+    # 4. Deliver Guidelines card with unmoving structures
     instructions_msg = await cb.message.answer(
         text=instructions_text, 
         reply_markup=onboarding_keyboard(),
@@ -173,6 +174,7 @@ async def on_unlock(cb: CallbackQuery) -> None:
     elapsed = time.monotonic() - start_time
     remaining = math.ceil(duration - elapsed)
 
+    # Dynamic real-time calculation pop-up validation check
     if remaining > 0:
         await cb.answer(
             text=f"🔒 Please listen fully to unlock the Sanctuary.\n"
