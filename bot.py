@@ -11,7 +11,7 @@ from aiohttp import web
 # ---------------------------------------------------------------------------
 # 1. CORE BOT CONFIGURATION
 # ---------------------------------------------------------------------------
-TOKEN = "8642428323:AAH64_jnF5le1Tz7XOfVztFHsKiFFLDiTpw"  # Put your actual bot token between these quotes
+TOKEN = "8642428323:AAEL29Vt0vjnVf98uH785iHl1xB1UD7xRZQ"  # Put your actual bot token between these quotes
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
