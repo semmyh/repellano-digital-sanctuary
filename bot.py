@@ -12,21 +12,20 @@ from aiohttp import web
 # ---------------------------------------------------------------------------
 # 1. CORE SYSTEM INITIALIZATION
 # ---------------------------------------------------------------------------
-# The system pulls the token from the code string or Render Environment smoothly
-TOKEN = os.environ.get("BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN_HERE")
+TOKEN = "YOUR_TELEGRAM_BOT_TOKEN_HERE"  # Put your actual bot token between quotes
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
-# --- MILESTONE LOCKED ASSETS (Restored & Protected Project Configurations) ---
+# --- MILESTONE LOCKED ASSETS (Restored & Protected Configurations) ---
 CONFIGS = {
-    "en": {"duration": 240, "msg_id": 123},       # English track payload details
-    "pidgin": {"duration": 180, "msg_id": 124}    # Pidgin track payload details
+    "en": {"duration": 240, "msg_id": 123},       
+    "pidgin": {"duration": 180, "msg_id": 124}    
 }
 
-CHANNEL_ID = -1001234567890  # Your physical audio repository channel ID
+CHANNEL_ID = -1001234567890  
 USER_SESSIONS = {} 
 
 EN_LYRICS = (
@@ -98,7 +97,6 @@ async def cmd_start(message: Message):
     user_id = message.from_user.id
     first_name = message.from_user.first_name
     
-    # Initialize the user tracking record
     USER_SESSIONS[user_id] = {"to_wipe": []}
     
     welcome_text = f"Welcome, Dear {first_name}! To begin, take the first step. Choose your language version below to enjoy the Sanctuary's Anthem."
@@ -109,7 +107,6 @@ async def cmd_start(message: Message):
 # ---------------------------------------------------------------------------
 @dp.callback_query(F.data.startswith("lang:"))
 async def on_lang(cb: CallbackQuery) -> None:
-    # CLEAN STRING EXTRACTION: Resolving data type formatting issues perfectly
     lang = cb.data.split(":", 1)[1]
     user_id = cb.from_user.id
     
@@ -174,7 +171,17 @@ async def on_unlock(cb: CallbackQuery) -> None:
     elapsed = time.monotonic() - start_time
     remaining = math.ceil(duration - elapsed)
 
-    # Dynamic real-time calculation pop-up validation check
+    # FIXED PERMANENTLY: Closed all argument bounds perfectly to fix syntax crashes
     if remaining > 0:
         await cb.answer(
-            text=f"🔒 Please listen fully to unlock the Sanctuary.\n"
+            text=f"🔒 Please listen fully to unlock the Sanctuary.\n⏳ {remaining} second(s) remaining.",
+            show_alert=True
+        )
+        return
+
+    session["completed"] = True
+    await cb.answer("✅ Playback verified! Access Granted.", show_alert=False)
+
+    try:
+        await bot.edit_message_text(
+            chat_id=user_id,
