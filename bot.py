@@ -10,7 +10,9 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest, TelegramRetryAfter
 from aiogram.filters import CommandStart
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import (
+    Message, CallbackQuery, ErrorEvent, InlineKeyboardMarkup, InlineKeyboardButton
+)
 from aiohttp import web
 
 # --- LOGGING SETUP ---
@@ -198,24 +200,39 @@ async def complete_after(user_id: int, session: dict) -> None:
 
 
 # --- STEP 1: /start ---
+async def wipe_old_quietly(user_id: int, old: dict) -> None:
+    """Clean up a previous run in the background so it can never block the greeting."""
+    try:
+        await wipe_chat(user_id, old)
+    except Exception:
+        log.exception("Background wipe failed for %s", user_id)
+
+
+async def begin_flow(user_id: int, name: str, trigger_msg_id: int | None) -> None:
+    """Start (or fully restart) the onboarding loop for one user."""
+    old = USER_SESSIONS.get(user_id)
+    session = new_session()
+    USER_SESSIONS[user_id] = session
+    if trigger_msg_id:
+        session["to_wipe"].append(trigger_msg_id)
+
+    # Greeting goes out FIRST, before any cleanup, so it always appears
+    greeting = await bot.send_message(
+        chat_id=user_id,
+        text=GREETING.format(name=md2_escape(name)),
+        reply_markup=lang_keyboard(),
+    )
+    session["to_wipe"].append(greeting.message_id)
+
+    if old:
+        asyncio.create_task(wipe_old_quietly(user_id, old))
+
+
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     user_id = message.from_user.id
-    name = message.from_user.first_name or "Leno"
-
-    # Rinse: wipe anything left over from a previous run for this user
-    old = USER_SESSIONS.get(user_id)
-    if old:
-        await wipe_chat(user_id, old)
-
-    session = new_session()
-    USER_SESSIONS[user_id] = session
-    session["to_wipe"].append(message.message_id)  # the user's own /start message
-
-    greeting = await message.answer(
-        text=GREETING.format(name=md2_escape(name)), reply_markup=lang_keyboard()
-    )
-    session["to_wipe"].append(greeting.message_id)
+    log.info("/start received from %s", user_id)
+    await begin_flow(user_id, message.from_user.first_name or "Leno", message.message_id)
 
 
 # --- STEP 2: LOAD SONG & LYRICS ---
@@ -226,9 +243,16 @@ async def on_lang(cb: CallbackQuery) -> None:
     cfg = CONFIGS.get(lang)
     session = USER_SESSIONS.get(user_id)
 
-    if session is None or cfg is None:
-        await cb.answer("Please type /start to reset your session.", show_alert=True)
+    if cfg is None:
+        await cb.answer()
         return
+
+    # Self-heal: if the bot was restarted, the old greeting buttons still work
+    if session is None:
+        session = new_session()
+        USER_SESSIONS[user_id] = session
+        if cb.message:
+            session["to_wipe"].append(cb.message.message_id)
 
     # Ignore double taps / taps while already loading or listening
     if session["phase"] != "greeting":
@@ -339,6 +363,23 @@ async def on_confirm(cb: CallbackQuery) -> None:
     phase2 = await bot.send_message(chat_id=user_id, text=PHASE2_TEXT)
     session["to_wipe"] = [phase2.message_id]  # so a later /start can wipe it too
     session["phase"] = "done"
+
+
+# --- FALLBACKS ---
+@dp.message()
+async def any_other_message(message: Message) -> None:
+    """If a user with no active session writes anything, start the flow for them."""
+    user_id = message.from_user.id
+    session = USER_SESSIONS.get(user_id)
+    if session is None or session.get("phase") == "done":
+        log.info("Message from %s with no active session: starting flow", user_id)
+        await begin_flow(user_id, message.from_user.first_name or "Leno", message.message_id)
+
+
+@dp.error()
+async def on_error(event: ErrorEvent) -> bool:
+    log.error("Unhandled error: %s", event.exception, exc_info=event.exception)
+    return True
 
 
 # --- WEB FRAMEWORK STATUS PORTS ---
