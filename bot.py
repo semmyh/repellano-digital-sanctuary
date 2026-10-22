@@ -400,7 +400,7 @@ async def start_web_server():
 
 async def start_bot_polling():
     log.info("Launching bot polling engine...")
-    await bot.delete_webhook(drop_pending_updates=True)
+    await bot.delete_webhook(drop_pending_updates=False)
     await dp.start_polling(bot)
 
 
