@@ -1,32 +1,37 @@
-import math
+import os
+import re
 import time
+import math
 import asyncio
 import logging
-import os
+
 from aiogram import Bot, Dispatcher, F
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.filters import Command
+from aiogram.exceptions import TelegramBadRequest, TelegramRetryAfter
+from aiogram.filters import CommandStart
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiohttp import web
 
-# ---------------------------------------------------------------------------
-# 1. CORE SYSTEM INITIALIZATION
-# ---------------------------------------------------------------------------
-TOKEN = "YOUR_TELEGRAM_BOT_TOKEN_HERE"  # Put your actual bot token between quotes
-bot = Bot(token=TOKEN)
-dp = Dispatcher()
+# --- LOGGING SETUP ---
+logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
+log = logging.getLogger("repellano")
 
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
+# --- ENVIRONMENT CONFIGURATIONS ---
+BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
+CHANNEL_ID = os.getenv("CHANNEL_ID", "@RDSTracks")
 
-# --- MILESTONE LOCKED ASSETS (Restored & Protected Configurations) ---
 CONFIGS = {
-    "en": {"duration": 240, "msg_id": 123},       
-    "pidgin": {"duration": 180, "msg_id": 124}    
+    "en": {"msg_id": 6, "duration": 240, "title": "English"},
+    "pidgin": {"msg_id": 15, "duration": 234, "title": "Pidgin"},
 }
 
-CHANNEL_ID = -1001234567890  
-USER_SESSIONS = {} 
+# --- TEXT BLOCKS (MarkdownV2 unless stated) ---
+GREETING = (
+    r"Welcome, Dear *{name}*\!" "\n\n"
+    r"To begin, take the first step\. Choose your language version "
+    r"below to enjoy the Sanctuary's Anthem\."
+)
 
 EN_LYRICS = (
     "<b>📜 Repellano Anthem (English Lyrics)</b>\n\n"
@@ -50,138 +55,323 @@ PIDGIN_LYRICS = (
     "<b>[Outro]</b>\nThe Digital Sanctuary.\nWe don build, we don automate, we wan rise.\n[Fade Out][End]"
 )
 
-# ---------------------------------------------------------------------------
-# 2. FREE HOSTING LIFELINE (The Dummy Web Server)
-# ---------------------------------------------------------------------------
-async def handle_ping(request):
-    return web.Response(text="Repellano Sanctuary Engine is Active!")
+# The two instruction lines now live on the buttons, so the message body stays short.
+INSTRUCTIONS = r"👇 *Follow the two steps below*"
 
-async def start_dummy_server():
-    app = web.Application()
-    app.router.add_get('/', handle_ping)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    port = int(os.environ.get("PORT", 10000))
-    site = web.TCPSite(runner, '0.0.0.0', port)
-    await site.start()
-    log.info(f"Free layer web node successfully bound to port {port}")
+PHASE2_TEXT = r"🏛 *Phase 2: Brief Introduction to Repellano Nigeria Limited \(RNL\)*"
 
-# ---------------------------------------------------------------------------
-# 3. INTERFACE BUILDERS
-# ---------------------------------------------------------------------------
-def language_keyboard() -> InlineKeyboardMarkup:
-    """Step 1 Milestone: Two clean, stacked language selection buttons."""
+# --- STATE ---
+# phase: greeting -> loading -> listening -> complete -> confirming -> done
+USER_SESSIONS: dict[int, dict] = {}
+
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
+dp = Dispatcher()
+
+_MD2_SPECIAL = re.compile(r"([_*\[\]()~`>#+\-=|{}.!\\])")
+
+
+def md2_escape(text: str) -> str:
+    """Escape user-supplied text (e.g. first names) for MarkdownV2."""
+    return _MD2_SPECIAL.sub(r"\\\1", text)
+
+
+# --- HIGH-PRECISION SECURE TIMING ---
+def secs_left(session: dict) -> int:
+    end = session.get("end_time", 0.0)
+    if not end:
+        return 0
+    return max(0, math.ceil(end - time.monotonic()))
+
+
+# --- KEYBOARDS ---
+def lang_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎧 English Version", callback_query_data="lang:en")],
-        [InlineKeyboardButton(text="🎧 Pidgin Version", callback_query_data="lang:pidgin")]
+        [InlineKeyboardButton(text="🎧 English Version", callback_data="lang:en")],
+        [InlineKeyboardButton(text="🎧 Pidgin Version", callback_data="lang:pidgin")],
     ])
 
-def onboarding_keyboard() -> InlineKeyboardMarkup:
-    """Step 3 Milestone: Static action button card with zero running timers."""
+
+def listening_keyboard(duration: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔒 Return to Click Here and Unlock Sanctuary", callback_query_data="unlock")]
+        [InlineKeyboardButton(
+            text=f"1️⃣ First, click the Play button ▶️ above to listen fully · {duration}s",
+            callback_data="noop")],
+        [InlineKeyboardButton(
+            text="🔒 Then, return to click here and Unlock Sanctuary",
+            callback_data="unlock")],
     ])
 
-def step4_complete_keyboard() -> InlineKeyboardMarkup:
-    """Step 4 Foundation: Milestone confirmation elements."""
+
+def complete_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎧 Track Playback Complete", callback_query_data="complete_status")],
-        [InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_query_data="confirm_sweep")]
+        [InlineKeyboardButton(text="🎧 Track Playback Complete", callback_data="noop")],
+        [InlineKeyboardButton(text="✅ Confirm Listening Fully", callback_data="confirm")],
     ])
 
-# ---------------------------------------------------------------------------
-# 4. STEP 1 PROGRESSIVE IMPLEMENTATION — THE FIRST HELLO
-# ---------------------------------------------------------------------------
-@dp.message(Command("start"))
-async def cmd_start(message: Message):
+
+# --- HELPERS ---
+def new_session() -> dict:
+    return {
+        "phase": "greeting",
+        "lang": None,
+        "to_wipe": [],
+        "end_time": 0.0,
+        "control_msg": None,
+        "task": None,
+    }
+
+
+async def delete_messages_safe(chat_id: int, ids: list[int]) -> None:
+    """Delete message ids from one user's chat only. Never raises."""
+    ids = sorted(set(ids))
+    for i in range(0, len(ids), 100):
+        chunk = ids[i:i + 100]
+        try:
+            await bot.delete_messages(chat_id=chat_id, message_ids=chunk)
+        except TelegramRetryAfter as e:
+            await asyncio.sleep(e.retry_after)
+            try:
+                await bot.delete_messages(chat_id=chat_id, message_ids=chunk)
+            except Exception as e2:
+                log.warning("Bulk delete retry failed for %s: %s", chat_id, e2)
+        except Exception:
+            # Fallback: delete one by one (older aiogram / odd message states)
+            for mid in chunk:
+                try:
+                    await bot.delete_message(chat_id=chat_id, message_id=mid)
+                except Exception:
+                    pass
+
+
+async def wipe_chat(user_id: int, session: dict) -> None:
+    """Cancel any pending timer and wipe every tracked message for this user."""
+    task = session.get("task")
+    if task and not task.done() and task is not asyncio.current_task():
+        task.cancel()
+    session["task"] = None
+    ids = session["to_wipe"]
+    session["to_wipe"] = []
+    if ids:
+        await delete_messages_safe(user_id, ids)
+
+
+async def show_complete(user_id: int, session: dict) -> None:
+    """Morph the control buttons into the 'playback complete' state (single API call)."""
+    if session.get("phase") not in ("listening", "complete"):
+        return
+    session["phase"] = "complete"
+    msg_id = session.get("control_msg")
+    if not msg_id:
+        return
+    for attempt in range(2):
+        try:
+            await bot.edit_message_reply_markup(
+                chat_id=user_id, message_id=msg_id, reply_markup=complete_keyboard()
+            )
+            return
+        except TelegramRetryAfter as e:
+            await asyncio.sleep(e.retry_after)
+        except TelegramBadRequest as e:
+            # "message is not modified" or message already deleted: nothing more to do
+            log.info("Keyboard edit skipped for %s: %s", user_id, e)
+            return
+        except Exception as e:
+            log.warning("Keyboard edit failed for %s: %s", user_id, e)
+            return
+
+
+async def complete_after(user_id: int, session: dict) -> None:
+    """One sleeping task per user: no polling, no repeated edits, one API call when done."""
+    try:
+        while True:
+            remaining = session["end_time"] - time.monotonic()
+            if remaining <= 0:
+                break
+            await asyncio.sleep(remaining + 0.05)
+        if USER_SESSIONS.get(user_id) is not session:
+            return
+        await show_complete(user_id, session)
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        log.exception("complete_after crashed for %s", user_id)
+
+
+# --- STEP 1: /start ---
+@dp.message(CommandStart())
+async def cmd_start(message: Message) -> None:
     user_id = message.from_user.id
-    first_name = message.from_user.first_name
-    
-    USER_SESSIONS[user_id] = {"to_wipe": []}
-    
-    welcome_text = f"Welcome, Dear {first_name}! To begin, take the first step. Choose your language version below to enjoy the Sanctuary's Anthem."
-    await message.answer(text=welcome_text, reply_markup=language_keyboard())
+    name = message.from_user.first_name or "Leno"
 
-# ---------------------------------------------------------------------------
-# 5. STEP 2 PROGRESSIVE IMPLEMENTATION — LOAD TRACK & LYRICS
-# ---------------------------------------------------------------------------
+    # Rinse: wipe anything left over from a previous run for this user
+    old = USER_SESSIONS.get(user_id)
+    if old:
+        await wipe_chat(user_id, old)
+
+    session = new_session()
+    USER_SESSIONS[user_id] = session
+    session["to_wipe"].append(message.message_id)  # the user's own /start message
+
+    greeting = await message.answer(
+        text=GREETING.format(name=md2_escape(name)), reply_markup=lang_keyboard()
+    )
+    session["to_wipe"].append(greeting.message_id)
+
+
+# --- STEP 2: LOAD SONG & LYRICS ---
 @dp.callback_query(F.data.startswith("lang:"))
 async def on_lang(cb: CallbackQuery) -> None:
     lang = cb.data.split(":", 1)[1]
     user_id = cb.from_user.id
-    
+    cfg = CONFIGS.get(lang)
     session = USER_SESSIONS.get(user_id)
-    if not session:
+
+    if session is None or cfg is None:
         await cb.answer("Please type /start to reset your session.", show_alert=True)
         return
-        
+
+    # Ignore double taps / taps while already loading or listening
+    if session["phase"] != "greeting":
+        await cb.answer()
+        return
+    session["phase"] = "loading"
     await cb.answer()
-    cfg = CONFIGS[lang]
 
     session["lang"] = lang
-    session["duration"] = cfg["duration"]
-    session["start_time"] = time.monotonic() 
-    session["completed"] = False
 
-    # 1. Fetch and copy Audio Track from hosting channel
+    # 1. Audio track
     try:
         audio_msg = await bot.copy_message(
             chat_id=user_id, from_chat_id=CHANNEL_ID, message_id=cfg["msg_id"]
         )
         session["to_wipe"].append(audio_msg.message_id)
     except Exception as e:
-        log.error("Audio connection skipped for mock asset validation: %s", e)
-        await cb.message.answer("⚠️ <i>[Audio Track Node Loaded — Verify physical Channel ID config to load actual file]</i>", parse_mode=ParseMode.HTML)
+        log.error("Audio copy failed: %s", e)
+        err = await bot.send_message(
+            chat_id=user_id,
+            text="⚠️ Could not load track audio. Please try again.",
+            parse_mode=None,
+        )
+        session["to_wipe"].append(err.message_id)
+        session["phase"] = "greeting"
+        return
 
-    # 2. Deliver corresponding lyrics text block
+    # Reference clock starts the moment the track is in the user's chat
+    session["end_time"] = time.monotonic() + cfg["duration"]
+
+    # 2. Lyrics
     lyrics_text = EN_LYRICS if lang == "en" else PIDGIN_LYRICS
-    lyrics_msg = await cb.message.answer(text=lyrics_text, parse_mode=ParseMode.HTML)
+    lyrics_msg = await bot.send_message(chat_id=user_id, text=lyrics_text, parse_mode=ParseMode.HTML)
     session["to_wipe"].append(lyrics_msg.message_id)
 
-    # 3. Dynamic instruction field injection
-    instructions_text = (
-        f"1️⃣ First, Click Play Button ▶️ Above to Listen Fully [{cfg['duration']}s]\n\n"
-        f"2️⃣ 🔒 Then, Return to Click Here and Unlock Sanctuary"
+    # 3. Control message (instructions live on the buttons, duration on the first one)
+    control = await bot.send_message(
+        chat_id=user_id, text=INSTRUCTIONS, reply_markup=listening_keyboard(cfg["duration"])
     )
+    session["to_wipe"].append(control.message_id)
+    session["control_msg"] = control.message_id
+    session["phase"] = "listening"
 
-    # 4. Deliver Guidelines card with unmoving structures
-    instructions_msg = await cb.message.answer(
-        text=instructions_text, 
-        reply_markup=onboarding_keyboard(),
-        parse_mode=ParseMode.HTML
-    )
-    session["instructions_msg_id"] = instructions_msg.message_id
-    session["to_wipe"].append(instructions_msg.message_id)
+    # User restarted mid-load: clean up what we just sent
+    if USER_SESSIONS.get(user_id) is not session:
+        await wipe_chat(user_id, session)
+        return
 
-# ---------------------------------------------------------------------------
-# 6. STEP 3 PROGRESSIVE IMPLEMENTATION — SMART SHOULDER-TAP GATEKEEPER
-# ---------------------------------------------------------------------------
+    # One lightweight sleeping task per user (a single edit when the song ends)
+    session["task"] = asyncio.create_task(complete_after(user_id, session))
+
+
+@dp.callback_query(F.data == "noop")
+async def on_noop(cb: CallbackQuery) -> None:
+    await cb.answer()
+
+
+# --- STEP 3: ON-DEMAND ANTI-CHEAT GATEKEEPER ---
 @dp.callback_query(F.data == "unlock")
 async def on_unlock(cb: CallbackQuery) -> None:
     user_id = cb.from_user.id
     session = USER_SESSIONS.get(user_id)
 
-    if not session or session.get("lang") is None:
-        await cb.answer("Session expired. Please use /start to initialize.", show_alert=True)
+    if not session or session.get("phase") not in ("listening", "complete"):
+        await cb.answer("Session expired. Please execute /start to begin.", show_alert=True)
         return
 
-    start_time = session.get("start_time", 0.0)
-    duration = session.get("duration", 0)
-    
-    elapsed = time.monotonic() - start_time
-    remaining = math.ceil(duration - elapsed)
-
-    # FIXED PERMANENTLY: Closed all argument bounds perfectly to fix syntax crashes
+    remaining = secs_left(session)
     if remaining > 0:
         await cb.answer(
-            text=f"🔒 Please listen fully to unlock the Sanctuary.\n⏳ {remaining} second(s) remaining.",
-            show_alert=True
+            f"🔒 Please listen fully to unlock the Sanctuary.\n"
+            f"⏳ ({remaining} seconds remaining).",
+            show_alert=True,
+        )
+    else:
+        # Time is up but the timer task hasn't morphed the buttons yet: do it now
+        await cb.answer()
+        await show_complete(user_id, session)
+
+
+# --- STEP 4: THE IMMACULATE CLEAN SWEEP ---
+@dp.callback_query(F.data == "confirm")
+async def on_confirm(cb: CallbackQuery) -> None:
+    user_id = cb.from_user.id
+    session = USER_SESSIONS.get(user_id)
+
+    if not session or session.get("phase") not in ("listening", "complete"):
+        await cb.answer("Session expired. Please execute /start to begin.", show_alert=True)
+        return
+
+    # Server-side check: never trust the button alone
+    remaining = secs_left(session)
+    if remaining > 0:
+        await cb.answer(
+            f"🔒 Please listen fully to unlock the Sanctuary.\n"
+            f"⏳ ({remaining} seconds remaining).",
+            show_alert=True,
         )
         return
 
-    session["completed"] = True
-    await cb.answer("✅ Playback verified! Access Granted.", show_alert=False)
+    session["phase"] = "confirming"  # blocks double taps
+    await cb.answer()
 
+    # Wipe audio, lyrics, control message, greeting and the user's /start (this user only)
+    await wipe_chat(user_id, session)
+
+    # Fresh slate: print Phase 2
+    phase2 = await bot.send_message(chat_id=user_id, text=PHASE2_TEXT)
+    session["to_wipe"] = [phase2.message_id]  # so a later /start can wipe it too
+    session["phase"] = "done"
+
+
+# --- WEB FRAMEWORK STATUS PORTS ---
+async def health_handler(request):
+    return web.Response(text="Server Online.")
+
+
+async def start_web_server():
+    app = web.Application()
+    app.router.add_get("/", health_handler)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.getenv("PORT", "10000"))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    log.info(f"Web server running on port {port}")
+
+
+async def start_bot_polling():
+    log.info("Launching bot polling engine...")
+    await bot.delete_webhook(drop_pending_updates=True)
+    await dp.start_polling(bot)
+
+
+async def main():
+    await asyncio.gather(
+        start_web_server(),
+        start_bot_polling(),
+    )
+
+
+if __name__ == "__main__":
     try:
-        await bot.edit_message_text(
-            chat_id=user_id,
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        pass
