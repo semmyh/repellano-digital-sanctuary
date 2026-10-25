@@ -15,6 +15,9 @@ from aiogram.types import (
 )
 from aiohttp import web
 
+import phase2
+import portal
+
 # --- LOGGING SETUP ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 log = logging.getLogger("repellano")
@@ -24,8 +27,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@RDSTracks")
 
 CONFIGS = {
-    "en": {"msg_id": 6, "duration": 250, "title": "English"},
-    "pidgin": {"msg_id": 15, "duration": 244, "title": "Pidgin"},
+    "en": {"msg_id": 6, "duration": 240, "title": "English"},
+    "pidgin": {"msg_id": 15, "duration": 234, "title": "Pidgin"},
 }
 
 # --- TEXT BLOCKS (MarkdownV2 unless stated) ---
@@ -68,6 +71,8 @@ USER_SESSIONS: dict[int, dict] = {}
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
 dp = Dispatcher()
+phase2.init(USER_SESSIONS)
+dp.include_router(phase2.router)
 
 _MD2_SPECIAL = re.compile(r"([_*\[\]()~`>#+\-=|{}.!\\])")
 
@@ -360,9 +365,7 @@ async def on_confirm(cb: CallbackQuery) -> None:
     await wipe_chat(user_id, session)
 
     # Fresh slate: print Phase 2
-    phase2 = await bot.send_message(chat_id=user_id, text=PHASE2_TEXT)
-    session["to_wipe"] = [phase2.message_id]  # so a later /start can wipe it too
-    session["phase"] = "done"
+    await portal.handoff(bot, user_id, session)
 
 
 # --- FALLBACKS ---
@@ -390,6 +393,7 @@ async def health_handler(request):
 async def start_web_server():
     app = web.Application()
     app.router.add_get("/", health_handler)
+    app.router.add_get("/portal", portal.portal_page)
     runner = web.AppRunner(app)
     await runner.setup()
     port = int(os.getenv("PORT", "10000"))
@@ -400,7 +404,7 @@ async def start_web_server():
 
 async def start_bot_polling():
     log.info("Launching bot polling engine...")
-    await bot.delete_webhook(drop_pending_updates=False)
+    await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
 
