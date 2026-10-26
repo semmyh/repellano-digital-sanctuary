@@ -27,8 +27,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@RDSTracks")
 
 CONFIGS = {
-    "en": {"msg_id": 6, "duration": 240, "title": "English"},
-    "pidgin": {"msg_id": 15, "duration": 234, "title": "Pidgin"},
+    "en": {"msg_id": 6, "duration": 250, "title": "English"},    # 240s song + 10s
+    "pidgin": {"msg_id": 15, "duration": 244, "title": "Pidgin"},  # 234s song + 10s
 }
 
 # --- TEXT BLOCKS (MarkdownV2 unless stated) ---
@@ -62,8 +62,8 @@ PIDGIN_LYRICS = (
 
 # The two instruction lines now live on the buttons, so the message body stays short.
 INSTRUCTIONS = (
-    r"💡 *Optional Tip:* tap the ➦ arrow beside the track button above the lyrics, then choose *Saved Messages* "
-    r"to keep the Anthem and replay it anytime\." "\n\n"
+    r"💡 *Optional Tip:* If you wish to replay the Anthem anytime, tap the ➦ arrow beside the track "
+    r"playback button on top of the lyrics, then choose *Saved Messages*\." "\n\n"
     r"👇 *Follow the two steps below*"
 )
 
@@ -179,6 +179,7 @@ async def show_complete(user_id: int, session: dict) -> None:
             await bot.edit_message_reply_markup(
                 chat_id=user_id, message_id=msg_id, reply_markup=complete_keyboard()
             )
+            log.info("Buttons morphed for user %s", user_id)
             return
         except TelegramRetryAfter as e:
             await asyncio.sleep(e.retry_after)
@@ -187,8 +188,8 @@ async def show_complete(user_id: int, session: dict) -> None:
             log.info("Keyboard edit skipped for %s: %s", user_id, e)
             return
         except Exception as e:
-            log.warning("Keyboard edit failed for %s: %s", user_id, e)
-            return
+            log.warning("Keyboard edit failed for %s (attempt %s): %s", user_id, attempt + 1, e)
+            await asyncio.sleep(2)
 
 
 async def complete_after(user_id: int, session: dict) -> None:
@@ -312,6 +313,7 @@ async def on_lang(cb: CallbackQuery) -> None:
 
     # One lightweight sleeping task per user (a single edit when the song ends)
     session["task"] = asyncio.create_task(complete_after(user_id, session))
+    log.info("Timer started for user %s: %ss (%s)", user_id, cfg["duration"], lang)
 
 
 @dp.callback_query(F.data == "noop")
