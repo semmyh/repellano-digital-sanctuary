@@ -26,7 +26,7 @@ log = logging.getLogger("repellano")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@RDSTracks")
 
-# Updated track countdown durations (250s for English, 244s for Pidgin)
+# Strictly defined countdown durations: 250 seconds for English and 244 seconds for Pidgin
 CONFIGS = {
     "en": {"msg_id": 6, "duration": 250, "title": "English"},
     "pidgin": {"msg_id": 15, "duration": 244, "title": "Pidgin"},
@@ -61,10 +61,10 @@ PIDGIN_LYRICS = (
     "<b>[Outro]</b>\nThe Digital Sanctuary.\nWe don build, we don automate, we wan rise.\n[Fade Out][End]"
 )
 
-# Rewritten Optional Tip aligned precisely above instructions with empty line space
+# Precisely written Optional Tip block with spacing and character escapes for MarkdownV2
 INSTRUCTIONS = (
-    r"Optional Tip: If you wish to replay the Anthem anytime, tap the ➦ arrow beside "
-    r"the track playback button on top of the lyrics, then choose Saved Messages\." "\n\n"
+    r"💡 *Optional Tip:* If you wish to replay the Anthem anytime, tap the ➦ arrow beside "
+    r"the track playback button on top of the lyrics, then choose *Saved Messages*\." "\n\n"
     r"👇 *Follow the two steps below*"
 )
 
@@ -166,7 +166,7 @@ async def wipe_chat(user_id: int, session: dict) -> None:
 
 
 async def show_complete(user_id: int, session: dict) -> None:
-    """Morph the control buttons into the 'playback complete' state (single API call)."""
+    """Morph the control buttons into the 'playback complete' state."""
     if session.get("phase") not in ("listening", "complete"):
         return
     session["phase"] = "complete"
@@ -208,16 +208,16 @@ async def complete_after(user_id: int, session: dict) -> None:
 
 # --- STEP 1: /start ---
 async def wipe_old_quietly(user_id: int, old: dict) -> None:
-    """Clean up a previous run in the background so it can never block the greeting."""
+    """Clean up a previous run in the background."""
     try:
         await wipe_chat(user_id, old)
     except Exception:
         log.exception("Background wipe failed for %s", user_id)
 
 
-async def begin_flow(user_id: int, name: str, trigger_msg_id: int | None) -> None:
-    """Start (or fully restart) the onboarding loop for one user."""
-    old = USER_SESSIONS.get(user_id)
-    session = new_session()
-    USER_SESSIONS[user_id] = session
-    if trigger_msg_id:
+@dp.message(CommandStart())
+async def cmd_start(message: Message) -> None:
+    user_id = message.from_user.id
+    log.info("/start received from %s", user_id)
+    
+    session = USER_SESSIONS.get(user_id)
