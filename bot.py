@@ -62,9 +62,9 @@ PIDGIN_LYRICS = (
 
 # The two instruction lines now live on the buttons, so the message body stays short.
 INSTRUCTIONS = (
-    r"👇 *Follow the two steps below*" "\n\n"
-    r"💡 *Tip:* tap the ➦ arrow beside the track, then choose *Saved Messages* "
-    r"to keep the Anthem and replay it anytime\."
+    r"💡 *Optional Tip:* tap the ➦ arrow beside the track button above the lyrics, then choose *Saved Messages* "
+    r"to keep the Anthem and replay it anytime\." "\n\n"
+    r"👇 *Follow the two steps below*"
 )
 
 PHASE2_TEXT = r"🏛 *Phase 2: Brief Introduction to Repellano Nigeria Limited \(RNL\)*"
