@@ -37,8 +37,10 @@ WELCOME_TEXT = (
 )
 
 
-async def handoff(bot: Bot, user_id: int, session: dict) -> None:
-    """Called by bot.py right after the Anthem clean sweep."""
+async def handoff(bot: Bot, user_id: int, session: dict, is_current) -> None:
+    """Called by bot.py right after the Anthem clean sweep.
+    `is_current()` tells us whether this member is still on the same run; if they
+    pressed /start during the pause, this old run stops and sends nothing."""
     session["phase"] = "portal_wait"
 
     # Show "typing..." during the pause so the empty screen feels intentional
@@ -47,6 +49,9 @@ async def handoff(bot: Bot, user_id: int, session: dict) -> None:
     except Exception:
         pass
     await asyncio.sleep(PAUSE_SECONDS)
+    if not is_current():
+        log.info("Member %s restarted during the pause; portal welcome skipped.", user_id)
+        return
 
     url = portal_url()
     if url.startswith("https://"):
@@ -62,6 +67,13 @@ async def handoff(bot: Bot, user_id: int, session: dict) -> None:
     msg = await bot.send_message(
         chat_id=user_id, text=text, reply_markup=markup, parse_mode=ParseMode.HTML
     )
+    if not is_current():
+        # restarted while the message was being sent: remove it again
+        try:
+            await bot.delete_message(chat_id=user_id, message_id=msg.message_id)
+        except Exception:
+            pass
+        return
     session["to_wipe"] = [msg.message_id]  # so a later /start can wipe it
     session["phase"] = "portal"
 

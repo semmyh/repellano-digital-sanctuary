@@ -371,7 +371,7 @@ async def on_confirm(cb: CallbackQuery) -> None:
     await wipe_chat(user_id, session)
 
     # Fresh slate: print Phase 2
-    await portal.handoff(bot, user_id, session)
+    await portal.handoff(bot, user_id, session, lambda: USER_SESSIONS.get(user_id) is session)
 
 
 # --- FALLBACKS ---
