@@ -60,7 +60,6 @@ PIDGIN_LYRICS = (
     "<b>[Outro]</b>\nThe Digital Sanctuary.\nWe don build, we don automate, we wan rise.\n[Fade Out][End]"
 )
 
-# Optional Tip above instructions with an empty line spacer in between
 INSTRUCTIONS = (
     r"💡 *Optional Tip:* tap the ➦ arrow beside the track button above the lyrics, then choose *Saved Messages* "
     r"to keep the Anthem and replay it anytime\." "\n\n"
@@ -224,3 +223,6 @@ async def begin_flow(user_id: int, name: str, trigger_msg_id: int | None) -> Non
 
     greeting = await bot.send_message(
         chat_id=user_id,
+        text=GREETING.format(name=md2_escape(name)),
+        reply_markup=lang_keyboard(),
+    )
