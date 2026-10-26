@@ -101,20 +101,24 @@ PAGES: list[str] = [
 
     # 7. Tiers
     "🏅 <b>Membership tiers</b>\n\n"
-    "After FSSO2, the number of FSSOs you can have activated at once and the guarantees you can give depend "
-    "on your tier:\n\n"
-    "• <b>Paid Client:</b> 2 FSSOs activated at once, 4 guarantees\n"
-    "• <b>VIP:</b> 3 FSSOs activated at once, 6 guarantees\n"
-    "• <b>Resident:</b> 4 FSSOs activated at once, 8 guarantees\n"
-    "• <b>Citizen:</b> 5 FSSOs activated at once, 10 guarantees\n\n"
-    "Only VIPs, Residents and Citizens can have more than 2 FSSOs activated at once.",
+    "No member may take two of the same FSSO at once, or more than 3 different FSSOs at once, "
+    "unless they are a VIP, Resident or Citizen.\n\n"
+    "• <b>Registered Lead:</b> FSSO1 only, free for 30 days, then upgrade to Paid\n"
+    "• <b>Paid Client:</b> 3 FSSOs activated at once, 4 guarantees\n"
+    "• <b>VIP (₦250,000):</b> 4 FSSOs, 6 guarantees\n"
+    "• <b>Resident (₦1,000,000):</b> 5 FSSOs, 8 guarantees\n"
+    "• <b>Citizen (₦3,000,000):</b> 6 FSSOs, 10 guarantees",
 
     # 8. Breaches and fines
     "⚖️ <b>Rule breaches and fines</b>\n\n"
-    "• <b>VIP:</b> a serious breach removes VIP status and returns you to Paid Client, without a "
+    "• <b>Paid Client:</b> can be banished for infractions, breach of the Terms, or reputational "
+    "damage caused by a guarantee's infraction.\n"
+    "• <b>VIP:</b> cannot be banished, but a serious breach returns you to Paid Client without a "
     "refund of the application fee.\n"
-    "• <b>Resident:</b> breaches carry a fine of ₦2,000,000 to ₦3,000,000.\n"
-    "• <b>Citizen:</b> breaches carry a fine of ₦3,500,000 to ₦5,000,000.\n\n"
+    "• <b>Resident:</b> cannot be banished, but can be restricted or fined ₦2,000,000 to ₦3,000,000.\n"
+    "• <b>Citizen:</b> cannot be banished, but can be restricted or fined ₦3,500,000 to ₦5,000,000.\n\n"
+    "Residents and Citizens may sell guarantees at ₦50,000 each, at the risk of reputational "
+    "damage caused by the guarantee.\n\n"
     "When a Resident or Citizen is fined, their RDS access is frozen until Korapay confirms the "
     "payment. You are then notified and access is restored.",
 ]

@@ -27,8 +27,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@RDSTracks")
 
 CONFIGS = {
-    "en": {"msg_id": 6, "duration": 250, "title": "English"},
-    "pidgin": {"msg_id": 15, "duration": 244, "title": "Pidgin"},
+    "en": {"msg_id": 6, "duration": 240, "title": "English"},
+    "pidgin": {"msg_id": 15, "duration": 234, "title": "Pidgin"},
 }
 
 # --- TEXT BLOCKS (MarkdownV2 unless stated) ---
