@@ -166,6 +166,66 @@ async def wipe_chat(user_id: int, session: dict) -> None:
         await delete_messages_safe(user_id, ids)
 
 
+# --- TOTAL CLEAN SWEEP ---
+# The bot used to delete only the message ids it remembered. A restart, a glitch or a poor
+# network could make it forget some, and those were left behind. The sweep below also deletes
+# by ID RANGE, so anything in this member's chat inside the range goes, remembered or not.
+# Telegram simply skips ids that do not exist, so this is safe to run over a wide range.
+SWEEP_LOOKBACK = 500  # how many ids below this run's first message to check for leftovers
+
+
+async def sweep_range(chat_id: int, low: int, high: int) -> None:
+    """Delete every message id from low to high in ONE member's chat. Never raises."""
+    low = max(1, low)
+    if high < low or not hasattr(bot, "delete_messages"):
+        return
+    ids = list(range(low, high + 1))
+    chunks = [ids[i:i + 100] for i in range(0, len(ids), 100)]
+    for chunk in reversed(chunks):  # newest first
+        for _ in range(2):
+            try:
+                await bot.delete_messages(chat_id=chat_id, message_ids=chunk)
+                break
+            except TelegramRetryAfter as e:
+                await asyncio.sleep(e.retry_after)
+            except Exception as e:
+                log.warning("Range delete failed for %s (%s-%s): %s", chat_id, chunk[0], chunk[-1], e)
+                break
+        await asyncio.sleep(0.05)
+
+
+async def total_sweep(user_id: int, session: dict) -> None:
+    """Immaculate clean sweep for one member: remembered messages plus every leftover."""
+    task = session.get("task")
+    if task and not task.done() and task is not asyncio.current_task():
+        task.cancel()
+    session["task"] = None
+    tracked = [i for i in session["to_wipe"] if i]
+    session["to_wipe"] = []
+
+    # A tiny marker message tells us the newest message id in this chat right now.
+    high = max(tracked or [0])
+    marker_id = None
+    try:
+        marker = await bot.send_message(chat_id=user_id, text="🧹", parse_mode=None)
+        marker_id = marker.message_id
+        high = max(high, marker_id)
+    except Exception as e:
+        log.warning("Sweep marker failed for %s: %s", user_id, e)
+
+    run_low = min(tracked) if tracked else max(1, high - 50)
+    await sweep_range(user_id, run_low - SWEEP_LOOKBACK, high)
+    # Belt and braces: also delete the remembered ids directly (works on any aiogram version)
+    await delete_messages_safe(user_id, tracked + ([marker_id] if marker_id else []))
+
+    async def second_pass() -> None:
+        await asyncio.sleep(3)  # catches anything that arrived late or failed the first time
+        await sweep_range(user_id, run_low, high)  # never above the marker: the next step's message is newer
+
+    asyncio.create_task(second_pass())
+    log.info("Total sweep done for user %s (ids %s-%s)", user_id, run_low - SWEEP_LOOKBACK, high)
+
+
 async def show_complete(user_id: int, session: dict) -> None:
     """Morph the control buttons into the 'playback complete' state (single API call)."""
     if session.get("phase") not in ("listening", "complete"):
@@ -210,10 +270,14 @@ async def complete_after(user_id: int, session: dict) -> None:
 
 
 # --- STEP 1: /start ---
-async def wipe_old_quietly(user_id: int, old: dict) -> None:
-    """Clean up a previous run in the background so it can never block the greeting."""
+async def wipe_old_quietly(user_id: int, old: dict | None, greeting_id: int) -> None:
+    """Clean up the previous run in the background so it can never block the greeting.
+    Even with no memory of an old run (e.g. after a restart), leftovers below the new
+    greeting are swept away so every restart starts on a clean screen."""
     try:
-        await wipe_chat(user_id, old)
+        if old:
+            await wipe_chat(user_id, old)
+        await sweep_range(user_id, greeting_id - SWEEP_LOOKBACK, greeting_id - 1)
     except Exception:
         log.exception("Background wipe failed for %s", user_id)
 
@@ -234,8 +298,7 @@ async def begin_flow(user_id: int, name: str, trigger_msg_id: int | None) -> Non
     )
     session["to_wipe"].append(greeting.message_id)
 
-    if old:
-        asyncio.create_task(wipe_old_quietly(user_id, old))
+    asyncio.create_task(wipe_old_quietly(user_id, old, greeting.message_id))
 
 
 @dp.message(CommandStart())
@@ -368,7 +431,7 @@ async def on_confirm(cb: CallbackQuery) -> None:
     await cb.answer()
 
     # Wipe audio, lyrics, control message, greeting and the user's /start (this user only)
-    await wipe_chat(user_id, session)
+    await total_sweep(user_id, session)
 
     # Fresh slate: print Phase 2
     await portal.handoff(bot, user_id, session, lambda: USER_SESSIONS.get(user_id) is session)
