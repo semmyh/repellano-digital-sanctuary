@@ -54,15 +54,15 @@ PIDGIN_LYRICS = (
     "<b>[Intro]</b>\nWelcome to the Sanctuary.\nWhere jaga jaga forex markets find their perfect peace.\nThis na Semleno Repellano Digital Sanctuary.\n\n"
     "<b>[Verse 1]</b>\nThe world market dey spin anyhow, e no dey stop\nForex trading sharp well-well, things just dey pop\nBut inside this Sanctuary, the vision clear pass glass\nWe dey commot the confusion, make the fear join pass\nWe dey change heavy load to simple tool for everybody.\n\n"
     "<b>[Chorus]</b>\nE simple. E dey run on own. E dey for everyone.\nThirty-five FSSOs, the tech don change the run!\nPower dey for everybody, no matter where you start from\nRepellano oh, oh, oh every single heart!\nEvery single heart\nEvery single heart\nEvery single heart\n\n"
-    "<b>[Verse 2]</b>\nThe whole setup dey here to change how things suppose to be\nWhere math and market jam, things arrange properly\nThe system solid well-well, e smooth and e deep\nE dey work sharp-sharp inside silence when the world dey sleep.\n\n"
+    "<b>[Verse 2]</b>\The whole setup dey here to change how things suppose to be\nWhere math and market jam, things arrange properly\nThe system solid well-well, e smooth and e deep\nE dey work sharp-sharp inside silence when the world dey sleep.\n\n"
     "<b>[Verse 3]</b>\nThirty-five FSSOs stand gidigba, everything set well\nFinancial Support Service Offerings, na him we call FSSOs\nAutomated tools wey no dey tire or lose face\nTo support everybody wey dey struggle hard to find small money\n\n"
     "<b>[Chorus]</b>\nSimple. Automated. Universal.\nThirty-five FSSOs, the tech reversal!\nFinancial power for you, no matter where you start\nRepellano oh, oh, oh every single heart!\nEvery single heart\nEvery single heart\n\n"
     "<b>[Outro]</b>\nThe Digital Sanctuary.\nWe don build, we don automate, we wan rise.\n[Fade Out][End]"
 )
 
 INSTRUCTIONS = (
-    r"💡 *Optional Tip:* tap the ➦ arrow beside the track button above the lyrics, then choose *Saved Messages* "
-    r"to keep the Anthem and replay it anytime\." "\n\n"
+    r"💡 *Optional Tip:* If you wish to to keep the Anthem and replay it anytime, go to the track button "
+    r"above the lyrics, tap the ➦ arrow beside it, then choose *Saved Messages*\. Otherwise, follow the prompt below" "\n\n"
     r"👇 *Follow the two steps below*"
 )
 
@@ -223,6 +223,3 @@ async def begin_flow(user_id: int, name: str, trigger_msg_id: int | None) -> Non
 
     greeting = await bot.send_message(
         chat_id=user_id,
-        text=GREETING.format(name=md2_escape(name)),
-        reply_markup=lang_keyboard(),
-    )
