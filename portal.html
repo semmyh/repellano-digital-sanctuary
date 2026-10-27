@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05201b">
+<title>Repellano Corporate Portal</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,650&display=swap" rel="stylesheet">
+<style>
+  /* ---------- Brand tokens: Night Emerald, Ivory, Lantern Amber ---------- */
+  :root {
+    --night: #05201b;      /* base */
+    --moss: #0b3a2f;       /* raised surfaces */
+    --moss-line: #1b5b4a;  /* hairlines */
+    --ivory: #f3eee1;      /* text */
+    --sage: #a9c2b6;       /* secondary text */
+    --amber: #f5b94a;      /* the one light in the sanctuary */
+    --amber-deep: #c88a1f;
+    --serif: "Fraunces", Georgia, "Times New Roman", serif;
+    --sans: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --safe-top: max(env(safe-area-inset-top, 0px), var(--tg-content-safe-area-inset-top, 0px));
+    --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px));
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--night); color: var(--ivory); }
+  body {
+    font: 400 16.5px/1.65 var(--sans);
+    background:
+      radial-gradient(120% 60% at 50% -10%, #0f4a3a 0%, rgba(15,74,58,0) 60%),
+      var(--night);
+    overflow-x: hidden;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 6px; }
+  [hidden] { display: none !important; }
+
+  /* ---------- Splash: the arch draws itself, then the lantern lights ---------- */
+  #splash {
+    position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; background: var(--night);
+    transition: opacity .6s ease, visibility .6s;
+  }
+  #splash.leave { opacity: 0; visibility: hidden; }
+  .splash-arch { width: 124px; height: auto; overflow: visible; }
+  .splash-arch .line { fill: none; stroke: var(--amber); stroke-width: 2.2; stroke-linecap: round;
+    stroke-dasharray: 420; stroke-dashoffset: 420; animation: draw 1.3s cubic-bezier(.6,.05,.3,1) .15s forwards; }
+  .splash-arch .glow { fill: url(#lantern); opacity: 0; animation: light 1.1s ease 1.2s forwards; }
+  .splash-arch .flame { fill: var(--amber); opacity: 0; animation: light .8s ease 1.5s forwards; }
+  .wordmark { margin-top: 26px; font: 650 34px/1 var(--serif); letter-spacing: .14em; opacity: 0;
+    animation: rise .9s ease 1.5s forwards; }
+  .sub { margin-top: 10px; color: var(--sage); font-size: 15px; opacity: 0; animation: rise .9s ease 1.75s forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  @keyframes light { to { opacity: 1; } }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  /* ---------- App shell ---------- */
+  #app { min-height: 100%; display: flex; flex-direction: column; max-width: 560px; margin: 0 auto; }
+  .top {
+    position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
+    padding: calc(var(--safe-top) + 14px) 20px 12px; background: linear-gradient(var(--night) 70%, rgba(5,32,27,0));
+  }
+  .progress { display: flex; gap: 12px; align-items: flex-end; }
+  .dot {
+    width: 24px; height: 32px; padding: 0; border: 1.5px solid var(--moss-line); background: transparent;
+    border-radius: 12px 12px 3px 3px; position: relative; transition: background .5s, border-color .5s, box-shadow .5s;
+  }
+  .dot.done { background: var(--amber); border-color: var(--amber); }
+  .dot.current { border-color: var(--amber); box-shadow: 0 0 14px rgba(245,185,74,.55); }
+  .dot.locked { opacity: .55; cursor: not-allowed; }
+  .dot.locked::after {  /* tiny padlock */
+    content: ""; position: absolute; left: 50%; top: 52%; width: 8px; height: 6px; transform: translate(-50%, -20%);
+    background: var(--moss-line); border-radius: 1px;
+  }
+  .dot.locked::before {
+    content: ""; position: absolute; left: 50%; top: 52%; width: 5px; height: 5px; transform: translate(-50%, -85%);
+    border: 1.5px solid var(--moss-line); border-bottom: 0; border-radius: 3px 3px 0 0;
+  }
+  .dot.shake { animation: shake .35s; }
+  @keyframes shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+  #menuBtn {
+    position: absolute; right: 14px; top: calc(var(--safe-top) + 10px); width: 44px; height: 44px;
+    border: 1px solid var(--moss-line); background: var(--moss); border-radius: 50%; display: grid; place-items: center;
+  }
+  #menuBtn span, #menuBtn span::before, #menuBtn span::after {
+    display: block; width: 16px; height: 1.8px; background: var(--ivory); border-radius: 2px; content: ""; position: relative;
+  }
+  #menuBtn span::before { position: absolute; top: -5px; }
+  #menuBtn span::after { position: absolute; top: 5px; }
+
+  main { flex: 1; padding: 8px 24px 140px; }
+  .sec { animation: enter .45s ease both; }
+  @keyframes enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+  /* the section arch: the signature shape of the brand */
+  .arch {
+    width: 112px; height: 140px; margin: 6px 0 22px; border: 1.5px solid var(--amber);
+    border-radius: 56px 56px 6px 6px; display: grid; place-items: center;
+    background: radial-gradient(90% 70% at 50% 100%, rgba(245,185,74,.38), rgba(245,185,74,0) 70%);
+    font: 500 46px/1 var(--serif); color: var(--ivory);
+  }
+  h1 { margin: 0 0 14px; font: 650 31px/1.15 var(--serif); letter-spacing: -.005em; }
+  p { margin: 0 0 16px; max-width: 62ch; }
+  .lead { font-size: 18px; }
+  .muted { color: var(--sage); }
+
+  .note {
+    margin: 22px 0 0; padding: 14px 16px; border-left: 3px solid var(--amber);
+    background: rgba(245,185,74,.08); border-radius: 0 10px 10px 0;
+  }
+  .note p { margin: 0; }
+
+  /* Section 2: three arches of leadership */
+  .leaders { display: flex; gap: 14px; margin: 22px 0 18px; }
+  .leader { flex: 1; text-align: center; }
+  .leader .mini {
+    height: 118px; border: 1.5px solid var(--moss-line); border-radius: 48px 48px 5px 5px; display: grid; place-items: center;
+    background: linear-gradient(var(--moss), rgba(11,58,47,.2)); font: 650 40px/1 var(--serif);
+  }
+  .leader .mini.lit { border-color: var(--amber); }
+  .leader small { display: block; margin-top: 8px; color: var(--sage); font-size: 14px; line-height: 1.3; }
+
+  /* Section 3: principles */
+  .principles { list-style: none; margin: 18px 0; padding: 0; display: grid; gap: 10px; }
+  .principles li {
+    display: flex; gap: 14px; align-items: center; padding: 13px 16px; border: 1px solid var(--moss-line);
+    border-radius: 12px; background: rgba(11,58,47,.55); font-weight: 500;
+  }
+  .principles li::before {
+    content: ""; flex: none; width: 14px; height: 18px; border: 1.5px solid var(--amber);
+    border-radius: 7px 7px 2px 2px;
+  }
+
+  /* Section 4: thirty-five arches */
+  .fssos { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px 10px; margin: 22px 0 8px; }
+  .fssos i {
+    width: 24px; height: 34px; justify-self: center; border: 1.5px solid var(--moss-line); border-radius: 12px 12px 3px 3px; display: block;
+    transition: background .4s, border-color .4s, box-shadow .4s;
+  }
+  .fssos i.on { background: var(--amber); border-color: var(--amber); box-shadow: 0 0 10px rgba(245,185,74,.45); }
+  .count { font: 650 54px/1 var(--serif); margin: 0 0 4px; }
+
+  /* Section 5: the starter path (a true sequence) */
+  .path { list-style: none; margin: 18px 0 6px; padding: 0; counter-reset: s; }
+  .path li { position: relative; padding: 0 0 20px 50px; counter-increment: s; }
+  .path li::before {
+    content: counter(s); position: absolute; left: 0; top: -2px; width: 34px; height: 34px; display: grid; place-items: center;
+    border-radius: 17px 17px 4px 4px; border: 1.5px solid var(--amber); font: 600 16px/1 var(--serif); background: var(--night);
+  }
+  .path li:not(:last-child)::after {
+    content: ""; position: absolute; left: 16.5px; top: 36px; bottom: 2px; width: 1.5px; background: var(--moss-line);
+  }
+  .path b { color: var(--amber); font-weight: 600; }
+
+  /* Section 6 */
+  blockquote {
+    margin: 8px 0 20px; padding: 0 0 0 18px; border-left: 3px solid var(--amber);
+    font: 500 24px/1.4 var(--serif);
+  }
+
+  /* Thank you */
+  .thanks { text-align: left; }
+  .arch.lit { background: radial-gradient(90% 90% at 50% 90%, rgba(245,185,74,.85), rgba(245,185,74,.1) 75%); border-color: var(--amber); }
+  .arch.lit svg { width: 46px; height: 46px; }
+
+  /* ---------- Bottom bar ---------- */
+  .bar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; max-width: 560px; margin: 0 auto;
+    padding: 28px 20px calc(var(--safe-bottom) + 16px); display: flex; gap: 12px; align-items: center;
+    background: linear-gradient(rgba(5,32,27,0), var(--night) 38%);
+  }
+  .cta {
+    flex: 1; min-height: 54px; border: 0; border-radius: 16px 16px 6px 6px; font-weight: 600; font-size: 17px;
+    color: var(--night); background: linear-gradient(180deg, #ffd27d, var(--amber) 55%, var(--amber-deep));
+    box-shadow: 0 8px 26px rgba(245,185,74,.28); transition: transform .15s, box-shadow .15s;
+  }
+  .cta:active { transform: translateY(1px) scale(.99); box-shadow: 0 4px 14px rgba(245,185,74,.25); }
+  .ghost {
+    min-height: 54px; padding: 0 18px; border: 1px solid var(--moss-line); background: var(--moss);
+    border-radius: 16px 16px 6px 6px; font-weight: 500;
+  }
+
+  /* ---------- Table of contents sheet ---------- */
+  #sheet { position: fixed; inset: 0; z-index: 40; background: rgba(2,12,10,.72); display: flex; align-items: flex-end; justify-content: center; }
+  .sheet-card {
+    width: 100%; max-width: 560px; background: var(--moss); border-top: 1.5px solid var(--amber);
+    border-radius: 28px 28px 0 0; padding: 22px 20px calc(var(--safe-bottom) + 22px); animation: up .3s ease both;
+  }
+  @keyframes up { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .sheet-card h2 { margin: 0 0 12px; font: 650 22px/1.2 var(--serif); }
+  .toc { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 8px; }
+  .toc button {
+    width: 100%; text-align: left; display: flex; align-items: center; gap: 14px; padding: 13px 14px;
+    background: rgba(5,32,27,.55); border: 1px solid var(--moss-line); border-radius: 12px;
+  }
+  .toc .n { flex: none; width: 28px; height: 34px; display: grid; place-items: center; border: 1.5px solid var(--amber);
+    border-radius: 14px 14px 3px 3px; font: 600 15px/1 var(--serif); }
+  .toc .tick { margin-left: auto; color: var(--amber); }
+
+  #toast {
+    position: fixed; left: 50%; bottom: calc(var(--safe-bottom) + 104px); transform: translateX(-50%); z-index: 30;
+    background: var(--moss); border: 1px solid var(--amber); padding: 10px 16px; border-radius: 12px; font-size: 15px;
+    max-width: 86vw; text-align: center; animation: enter .25s ease both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; transition-duration: .01ms !important; }
+    .splash-arch .line { stroke-dashoffset: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div id="splash" role="status" aria-label="Loading the Repellano Corporate Portal">
+  <svg class="splash-arch" viewBox="0 0 124 156" aria-hidden="true">
+    <defs>
+      <radialGradient id="lantern" cx="50%" cy="100%" r="80%">
+        <stop offset="0%" stop-color="#f5b94a" stop-opacity=".85"/>
+        <stop offset="100%" stop-color="#f5b94a" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <path class="glow" d="M8 152 V62 A54 54 0 0 1 116 62 V152 Z"/>
+    <path class="line" d="M8 152 V62 A54 54 0 0 1 116 62 V152 Z"/>
+    <path class="flame" d="M62 128 C50 116 56 104 62 94 C68 104 74 116 62 128 Z"/>
+  </svg>
+  <div class="wordmark">REPELLANO</div>
+  <div class="sub">Corporate Portal</div>
+</div>
+
+<div id="app" hidden>
+  <header class="top">
+    <nav class="progress" id="progress" aria-label="Sections"></nav>
+    <button id="menuBtn" type="button" aria-label="Open table of contents" hidden><span></span></button>
+  </header>
+  <main id="stage" tabindex="-1"></main>
+  <footer class="bar">
+    <button id="backBtn" class="ghost" type="button" hidden>Back</button>
+    <button id="cta" class="cta" type="button">I’ve Read This</button>
+  </footer>
+</div>
+
+<div id="sheet" hidden>
+  <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="tocTitle">
+    <h2 id="tocTitle">Table of contents</h2>
+    <ul class="toc" id="toc"></ul>
+    <button class="ghost" id="closeSheet" type="button" style="width:100%">Close</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var tg = window.Telegram && window.Telegram.WebApp;
+  var STORE_KEY = "rds_portal_v1";
+  var CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="#05201b" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
+  /* ---------- Content ---------- */
+  var SECTIONS = [
+    { slug: "who", title: "Who we are", html:
+      '<p class="lead">Repellano Nigeria Limited (RNL) is an uncommon provider of financial support services, built on a “zero-risk” philosophy.</p>' +
+      '<p>We never charge you fees upfront and never trade with your money. We trade with our own capital: any profit we generate is ours, and a share of it is gifted to you as a cash loan.</p>' +
+      '<div class="note"><p>To secure your $10 starter loan, you place a refundable $10 security deposit in escrow with a third-party processor. RNL never collects it.</p></div>' +
+      '<p style="margin-top:22px">We are politically neutral and do not promote any political cause. We also do not, and cannot, have all the solutions to human needs.</p>' },
+
+    { slug: "structure", title: "Corporate structure and leadership", html:
+      '<p class="lead">We are led by 62 visionaries.</p>' +
+      '<div class="leaders">' +
+        '<div class="leader"><div class="mini lit">1</div><small>Group Managing Director</small></div>' +
+        '<div class="leader"><div class="mini">11</div><small>Executive Directors</small></div>' +
+        '<div class="leader"><div class="mini">50</div><small>CEOs</small></div>' +
+      '</div>' +
+      '<p>This fairly 1:5 leadership ratio ensures precision and top-level oversight.</p>' +
+      '<p>Each of them brings a wealth of experience and wisdom to ensure clinical delivery of the Sanctuary’s promises.</p>' },
+
+    { slug: "digital", title: "Digital infrastructure and automation", html:
+      '<p class="lead">The Repellano Digital Sanctuary is built on native Telegram, so profiling, onboarding and every service happen right here in your chat.</p>' +
+      '<ul class="principles"><li>Protective</li><li>Defensive</li><li>Anti-predatory</li><li>Integrated</li></ul>' +
+      '<p>Automation delivers each service with speed and surgical precision.</p>' },
+
+    { slug: "fssos", title: "Financial Support Service Offerings", html:
+      '<div class="count">35</div>' +
+      '<p class="lead">specialised Financial Support Service Offerings (FSSOs).</p>' +
+      '<div class="fssos" id="fssoGrid" aria-hidden="true"></div>' +
+      '<p style="margin-top:18px">Each FSSO is a precision-engineered tool that solves a specific financial need.</p>' },
+
+    { slug: "started", title: "How we help you get started", html:
+      '<ol class="path">' +
+        '<li>We give you a <b>$10 loan</b> to trade forex.</li>' +
+        '<li>We give you our <b>automated trading system</b>.</li>' +
+        '<li>If a trade ends in a loss, we give you another $10 loan for the next trade, and we repeat this until a trade wins.</li>' +
+        '<li>A winning trade produces <b>$150</b> for you. Walk away with it, no questions asked, or use all or part of it to make more.</li>' +
+      '</ol>' +
+      '<p>You get this solid foundation only once in your lifetime.</p>' +
+      '<div class="note"><p>Your $10 security deposit comes back to you on your first WIN, or if you walk away after a LOSS.</p></div>' },
+
+    { slug: "advice", title: "Our advice to you", html:
+      '<blockquote>Decide wisely what to do with your earnings.</blockquote>' +
+      '<p class="lead">Always remember that the cash is a loan given to you, and RNL will never ask for it back.</p>' }
+  ];
+  var LAST = SECTIONS.length - 1;
+  var START_PARAMS = { who: 0, structure: 1, digital: 2, fssos: 3, started: 4, advice: 5 };
+
+  /* ---------- State: completed = sections marked read (0-6); view 0-5, or 6 = thank you ---------- */
+  var state = { completed: 0, view: 0 };
+
+  var el = {
+    splash: document.getElementById("splash"), app: document.getElementById("app"),
+    progress: document.getElementById("progress"), stage: document.getElementById("stage"),
+    cta: document.getElementById("cta"), back: document.getElementById("backBtn"),
+    menu: document.getElementById("menuBtn"), sheet: document.getElementById("sheet"),
+    toc: document.getElementById("toc"), close: document.getElementById("closeSheet")
+  };
+
+  function haptic(kind, type) {
+    try { if (tg && tg.HapticFeedback) { kind === "n" ? tg.HapticFeedback.notificationOccurred(type) : tg.HapticFeedback.impactOccurred(type); } } catch (e) {}
+  }
+
+  /* ---------- Persistence: Telegram CloudStorage (per member, any device), localStorage fallback ---------- */
+  function save() {
+    var data = JSON.stringify({ completed: state.completed });
+    try { if (tg && tg.CloudStorage) { tg.CloudStorage.setItem(STORE_KEY, data); } } catch (e) {}
+    try { window.localStorage.setItem(STORE_KEY, data); } catch (e) {}
+  }
+  function load(done) {
+    var finished = false;
+    function finish(raw) {
+      if (finished) { return; } finished = true;
+      try { var d = JSON.parse(raw || "{}"); if (typeof d.completed === "number") { state.completed = Math.max(0, Math.min(SECTIONS.length, d.completed)); } } catch (e) {}
+      done();
+    }
+    setTimeout(function () { finish(null); }, 1500);
+    try {
+      if (tg && tg.CloudStorage) { tg.CloudStorage.getItem(STORE_KEY, function (err, val) { finish(err ? null : val); }); return; }
+    } catch (e) {}
+    var local = null; try { local = window.localStorage.getItem(STORE_KEY); } catch (e) {}
+    finish(local);
+  }
+
+  /* ---------- Rendering ---------- */
+  function renderProgress() {
+    el.progress.innerHTML = "";
+    SECTIONS.forEach(function (s, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      var cls = "dot";
+      if (i < state.completed) { cls += " done"; }
+      if (i === state.view) { cls += " current"; }
+      if (i > state.completed) { cls += " locked"; }
+      b.className = cls;
+      b.setAttribute("aria-label", "Section " + (i + 1) + ": " + s.title + (i > state.completed ? " (locked)" : ""));
+      if (i === state.view) { b.setAttribute("aria-current", "step"); }
+      b.addEventListener("click", function () { goTo(i, b); });
+      el.progress.appendChild(b);
+    });
+    el.menu.hidden = state.completed < SECTIONS.length;
+  }
+
+  function renderSection(i) {
+    var s = SECTIONS[i];
+    el.stage.innerHTML = '<article class="sec"><div class="arch" aria-hidden="true">' + (i + 1) + '</div><h1>' + s.title + '</h1>' + s.html + '</article>';
+    if (s.slug === "fssos") { lightGrid(); }
+  }
+
+  function lightGrid() {
+    var grid = document.getElementById("fssoGrid"); if (!grid) { return; }
+    var cells = [], n;
+    for (n = 0; n < 35; n++) { var c = document.createElement("i"); grid.appendChild(c); cells.push(c); }
+    cells.forEach(function (c, k) { setTimeout(function () { c.className = "on"; }, 120 + k * 28); });  // one reveal, once
+  }
+
+  function renderThanks() {
+    el.stage.innerHTML = '<article class="sec thanks"><div class="arch lit" aria-hidden="true">' + CHECK + '</div>' +
+      '<h1>Thank you</h1>' +
+      '<p class="lead">You have completed the introduction to Repellano Nigeria Limited.</p>' +
+      '<p class="muted">Use the menu at the top right to revisit any section.</p></article>';
+  }
+
+  function render() {
+    renderProgress();
+    if (state.view >= SECTIONS.length) {
+      renderThanks();
+      el.cta.textContent = "Continue in the chat";
+      el.back.hidden = false;
+    } else {
+      renderSection(state.view);
+      el.back.hidden = state.view === 0;
+      if (state.view === state.completed) { el.cta.textContent = "I’ve Read This"; }
+      else if (state.view === LAST) { el.cta.textContent = "Finish"; }
+      else { el.cta.textContent = "Next"; }
+    }
+    window.scrollTo(0, 0);
+    try { el.stage.focus({ preventScroll: true }); } catch (e) {}
+  }
+
+  /* ---------- Navigation: the sequence is enforced here ---------- */
+  function toast(msg) {
+    var old = document.getElementById("toast"); if (old) { old.remove(); }
+    var t = document.createElement("div"); t.id = "toast"; t.setAttribute("role", "status"); t.textContent = msg;
+    document.body.appendChild(t); setTimeout(function () { t.remove(); }, 2200);
+  }
+
+  function goTo(i, btn) {
+    if (i > state.completed) {                       // locked: future sections stay shut
+      haptic("i", "light");
+      if (btn) { btn.classList.add("shake"); setTimeout(function () { btn.classList.remove("shake"); }, 400); }
+      toast("Please read section " + (state.completed + 1) + " first.");
+      return;
+    }
+    state.view = i; closeSheet(); render();
+  }
+
+  el.cta.addEventListener("click", function () {
+    haptic("i", "medium");
+    if (state.view >= SECTIONS.length) { if (tg && tg.close) { tg.close(); } return; }
+    if (state.view === state.completed) {            // marking this section as read unlocks the next
+      state.completed += 1; save(); haptic("n", "success");
+    }
+    state.view = state.view + 1;                     // 6 means the thank-you screen
+    render();
+  });
+  el.back.addEventListener("click", function () { haptic("i", "light"); if (state.view > 0) { state.view -= 1; render(); } });
+
+  /* Table of contents (menu button appears once every section has been read) */
+  function openSheet() {
+    el.toc.innerHTML = "";
+    SECTIONS.forEach(function (s, i) {
+      var li = document.createElement("li"), b = document.createElement("button");
+      b.type = "button";
+      b.innerHTML = '<span class="n">' + (i + 1) + '</span><span>' + s.title + '</span><span class="tick" aria-hidden="true">✓</span>';
+      b.addEventListener("click", function () { goTo(i); });
+      li.appendChild(b); el.toc.appendChild(li);
+    });
+    el.sheet.hidden = false; haptic("i", "light");
+  }
+  function closeSheet() { el.sheet.hidden = true; }
+  el.menu.addEventListener("click", openSheet);
+  el.close.addEventListener("click", closeSheet);
+  el.sheet.addEventListener("click", function (e) { if (e.target === el.sheet) { closeSheet(); } });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") { closeSheet(); } });
+
+  /* ---------- Start-up ---------- */
+  function deepLink() {
+    // Deep links (?start=fssos or Telegram start_param) are honoured only if that section is already unlocked.
+    var p = null;
+    try { p = new URLSearchParams(window.location.search).get("start") || new URLSearchParams(window.location.search).get("section"); } catch (e) {}
+    try { if (!p && tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) { p = tg.initDataUnsafe.start_param; } } catch (e) {}
+    if (p && Object.prototype.hasOwnProperty.call(START_PARAMS, p) && START_PARAMS[p] <= state.completed) { return START_PARAMS[p]; }
+    return null;
+  }
+
+  if (tg) {
+    try { tg.ready(); tg.expand(); } catch (e) {}
+    try { tg.setHeaderColor("#05201b"); tg.setBackgroundColor("#05201b"); } catch (e) {}
+    try { if (tg.disableVerticalSwipes) { tg.disableVerticalSwipes(); } } catch (e) {}
+  }
+
+  var splashStart = Date.now();
+  load(function () {
+    var link = deepLink();
+    if (state.completed >= SECTIONS.length) { state.view = SECTIONS.length; }        // finished: show thank-you, menu available
+    else { state.view = Math.min(state.completed, LAST); }                            // resume where they stopped
+    if (link !== null) { state.view = link; }
+    render();
+    var wait = Math.max(0, 2600 - (Date.now() - splashStart));                        // let the splash finish its one sequence
+    setTimeout(function () {
+      el.app.hidden = false; el.splash.classList.add("leave");
+      setTimeout(function () { el.splash.remove(); }, 700);
+    }, wait);
+  });
+})();
+</script>
+</body>
+</html>
