@@ -324,7 +324,7 @@
     try { if (tg && tg.CloudStorage) { tg.CloudStorage.setItem(STORE_KEY, data); } } catch (e) {}
     try { window.localStorage.setItem(STORE_KEY, data); } catch (e) {}
   }
-  function load(done) {
+  function loadLocal(done) {
     var finished = false;
     function finish(raw) {
       if (finished) { return; } finished = true;
@@ -337,6 +337,52 @@
     } catch (e) {}
     var local = null; try { local = window.localStorage.getItem(STORE_KEY); } catch (e) {}
     finish(local);
+  }
+
+  /* ---------- Server records (Neon database). Falls back to the local copy above if unavailable ---------- */
+  var useServer = false, serverCompleted = 0, syncing = false, syncFails = 0;
+
+  function api(path, opts) {
+    opts = opts || {};
+    opts.headers = Object.assign({ "X-Telegram-Init-Data": (tg && tg.initData) || "" }, opts.headers || {});
+    var timer = null;
+    if (window.AbortController) { var ctrl = new AbortController(); opts.signal = ctrl.signal; timer = setTimeout(function () { ctrl.abort(); }, 6000); }
+    return fetch(path, opts).then(function (r) {
+      if (timer) { clearTimeout(timer); }
+      if (!r.ok) { throw new Error("http " + r.status); }
+      return r.json();
+    });
+  }
+
+  function loadProgress(done) {
+    if (tg && tg.initData) {
+      api("/api/progress").then(function (d) {
+        if (d && d.enabled && typeof d.completed === "number") {
+          useServer = true; serverCompleted = d.completed;
+          state.completed = Math.max(0, Math.min(SECTIONS.length, d.completed));
+          done();
+        } else { loadLocal(done); }
+      }).catch(function () { loadLocal(done); });
+    } else { loadLocal(done); }
+  }
+
+  /* Sends "section N was read" to the server, one section at a time, until it has caught up. */
+  function flush() {
+    if (!useServer || syncing || serverCompleted >= state.completed) { return; }
+    syncing = true;
+    var before = serverCompleted;
+    api("/api/progress/read", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ section: before }) })
+      .then(function (d) {
+        syncing = false; syncFails = 0;
+        if (d && d.enabled && typeof d.completed === "number") {
+          serverCompleted = d.completed;
+          if (d.completed < state.completed && d.completed <= before) {      // server disagrees: trust the server
+            state.completed = d.completed; state.view = Math.min(state.view, d.completed); render(); return;
+          }
+          flush();
+        }
+      })
+      .catch(function () { syncing = false; if (++syncFails < 6) { setTimeout(flush, 4000); } });
   }
 
   /* ---------- Rendering ---------- */
@@ -416,7 +462,7 @@
     haptic("i", "medium");
     if (state.view >= SECTIONS.length) { if (tg && tg.close) { tg.close(); } return; }
     if (state.view === state.completed) {            // marking this section as read unlocks the next
-      state.completed += 1; save(); haptic("n", "success");
+      state.completed += 1; save(); haptic("n", "success"); flush();
     }
     state.view = state.view + 1;                     // 6 means the thank-you screen
     render();
@@ -458,7 +504,7 @@
   }
 
   var splashStart = Date.now();
-  load(function () {
+  loadProgress(function () {
     var link = deepLink();
     if (state.completed >= SECTIONS.length) { state.view = SECTIONS.length; }        // finished: show thank-you, menu available
     else { state.view = Math.min(state.completed, LAST); }                            // resume where they stopped
