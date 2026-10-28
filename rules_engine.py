@@ -58,48 +58,63 @@ class FssoInfo:
     admin_fee_ngn: int               # built into the FET, paid at settlement
     renewal_fee_ngn: int | None      # None = not renewable
     duration_days: int | None        # None = lifetime (activated only once)
+    master_min_usd: int              # RNL's Master account minimum (the daily sweep resets to it)
+    slave_min_usd: int               # member's linked account minimum; the RDS insists on it
+    equity_target_usd: int | None    # Final Equity Target (None for lifetime-ownership FSSOs)
+    rnl_share_usd: int | None
+    member_share_usd: int | None
+    exits_rds: bool                  # "Exited from RDS" after delivery (FSSO33 to FSSO35)
+    lifetime_ownership: bool         # equity target column reads "Lifetime Ownership status"
 
     @property
     def is_lifetime(self) -> bool:
         return self.duration_days is None
 
+    @property
+    def fet_remainder_usd(self) -> int | None:
+        """Target minus both shares. It lets the applicable fees be paid in arrears; what is left
+        after the fees is the Net Balance, which goes to the member."""
+        if None in (self.equity_target_usd, self.rnl_share_usd, self.member_share_usd):
+            return None
+        return self.equity_target_usd - self.rnl_share_usd - self.member_share_usd
+
 
 FSSO_SCHEDULE: dict[int, FssoInfo] = {
-    1: FssoInfo('Starter Trader Fund', 20000, None, None),
-    2: FssoInfo('Rainy Day Fund', 20000, None, None),
-    3: FssoInfo('My Daily Meal', 20000, 30000, 90),
-    4: FssoInfo('My Annual Rent', 20000, 30000, 365),
-    5: FssoInfo('My Annual Clothing', 20000, 30000, 365),
-    6: FssoInfo('My Health Insurance', 20000, 30000, 365),
-    7: FssoInfo('My New Phone', 20000, 30000, 1460),
-    8: FssoInfo('My Monthly Bills', 20000, 30000, 365),
-    9: FssoInfo('My Weekend Pepper soup', 20000, 30000, 90),
-    10: FssoInfo('My Vacation Fund', 20000, 30000, 365),
-    11: FssoInfo('My Cancer Medics Fund', 20000, 30000, 90),
-    12: FssoInfo('My Dialysis Fund', 20000, 30000, 60),
-    13: FssoInfo('My Surgery Fund', 20000, 30000, 365),
-    14: FssoInfo('My IVF Fund', 20000, 30000, 730),
-    15: FssoInfo('My Point-of-Sale Biz', 20000, 30000, 365),
-    16: FssoInfo('My Mini Importation Biz', 20000, 30000, 365),
-    17: FssoInfo('I Work with My Hands', 20000, 30000, 365),
-    18: FssoInfo('My Starter Farm Biz', 20000, 30000, 365),
-    19: FssoInfo('My Ice Block Biz', 20000, 30000, 365),
-    20: FssoInfo('My Party Rentals Biz', 20000, 30000, 365),
-    21: FssoInfo('Buy & Sell Biz (Market Trader)', 20000, 30000, 365),
-    22: FssoInfo('My Tractor Rider Biz', 20000, 30000, 365),
-    23: FssoInfo('My School Fees', 20000, 30000, 365),
-    24: FssoInfo('Our Wedding Expenses', 20000, None, None),
-    25: FssoInfo('Our New Baby Fund', 20000, 30000, 730),
-    26: FssoInfo('My Pension Booster', 20000, None, None),
-    27: FssoInfo('My Japa Dream', 20000, 30000, 365),
-    28: FssoInfo('My Plot of Land', 100000, None, None),
-    29: FssoInfo('Secure My Land', 100000, None, None),
-    30: FssoInfo('Build My Shelter', 100000, None, None),
-    31: FssoInfo('My Solar Power Fund', 100000, 30000, 1460),
-    32: FssoInfo('Home Furnishing', 100000, 30000, 1460),
-    33: FssoInfo('My Prop Funded Dream', 75000, None, None),
-    34: FssoInfo('My FX Trader Bot', 50000, None, None),
-    35: FssoInfo('Level by Level', 100000, None, None),
+    1: FssoInfo('Starter Trader Fund', 50000, None, None, 10, 10, 375, 150, 150, False, False),
+    2: FssoInfo('Rainy Day Fund', 50000, None, None, 50, 50, 1575, 750, 750, False, False),
+    3: FssoInfo('My Daily Meal', 50000, 30000, 90, 50, 50, 1075, 500, 500, False, False),
+    4: FssoInfo('My Annual Rent', 50000, 30000, 365, 50, 50, 1575, 750, 750, False, False),
+    5: FssoInfo('My Annual Clothing', 50000, 30000, 365, 50, 50, 1075, 500, 500, False, False),
+    6: FssoInfo('My Health Insurance', 50000, 30000, 365, 50, 50, 1575, 750, 750, False, False),
+    7: FssoInfo('My New Phone', 50000, 30000, 1460, 50, 50, 800, 375, 375, False, False),
+    8: FssoInfo('My Monthly Bills', 50000, 30000, 90, 50, 50, 800, 375, 250, False, False),
+    9: FssoInfo('My Weekend Pepper soup', 50000, 30000, 90, 50, 50, 800, 375, 250, False, False),
+    10: FssoInfo('My Vacation Fund', 50000, 30000, 365, 50, 50, 1575, 750, 750, False, False),
+    11: FssoInfo('My Cancer Medics Fund', 50000, 30000, 90, 50, 100, 2100, 1000, 1000, False, False),
+    12: FssoInfo('My Dialysis Fund', 50000, 30000, 60, 50, 100, 3100, 1500, 1500, False, False),
+    13: FssoInfo('My Surgery Fund', 50000, 30000, 365, 50, 100, 2100, 1000, 1000, False, False),
+    14: FssoInfo('My IVF Fund', 50000, 30000, 730, 50, 100, 3100, 1500, 1500, False, False),
+    15: FssoInfo('My Point-of-Sale Biz', 50000, 30000, 365, 50, 50, 1575, 750, 750, False, False),
+    16: FssoInfo('My Mini Importation Biz', 50000, 30000, 365, 50, 100, 3100, 1500, 1500, False, False),
+    17: FssoInfo('I Work with My Hands', 50000, 30000, 365, 50, 100, 2100, 1000, 1000, False, False),
+    18: FssoInfo('My Starter Farm Biz', 50000, 30000, 365, 50, 100, 3100, 1500, 1500, False, False),
+    19: FssoInfo('My Ice Block Biz', 50000, 30000, 365, 50, 100, 2100, 1000, 1000, False, False),
+    20: FssoInfo('My Party Rentals Biz', 50000, 30000, 365, 50, 100, 2100, 1000, 1000, False, False),
+    21: FssoInfo('Buy & Sell Biz (Market Trader)', 50000, 30000, 365, 50, 100, 2100, 1000, 1000, False, False),
+    22: FssoInfo('My Tractor Rider Biz', 500000, 200000, 730, 50, 1000, 10500, 5000, 5000, False, False),
+    23: FssoInfo('My School Fees', 50000, 30000, 365, 50, 100, 2100, 1000, 1000, False, False),
+    24: FssoInfo('Our Wedding Expenses', 50000, None, None, 50, 100, 3100, 1500, 1500, False, False),
+    25: FssoInfo('Our New Baby Fund', 50000, 30000, 730, 50, 100, 2100, 1000, 1000, False, False),
+    26: FssoInfo('My Pension Booster', 50000, None, None, 50, 500, 5500, 2500, 2500, False, False),
+    27: FssoInfo('My Japa Dream', 50000, 30000, 1095, 50, 100, 2100, 1000, 1000, False, False),
+    28: FssoInfo('My Plot of Land', 250000, None, None, 50, 500, 5500, 2500, 2500, False, False),
+    29: FssoInfo('Secure My Land', 250000, None, None, 50, 500, 5500, 2500, 2500, False, False),
+    30: FssoInfo('Build My Shelter', 250000, None, None, 50, 1000, 10500, 5000, 5000, False, False),
+    31: FssoInfo('My Solar Power Fund', 250000, 30000, 1460, 50, 500, 5500, 2500, 2500, False, False),
+    32: FssoInfo('Home Furnishing', 250000, 30000, 1460, 50, 500, 5500, 2500, 2500, False, False),
+    33: FssoInfo('My Prop Funded Dream', 500000, None, None, 50, 2500, None, None, None, True, True),
+    34: FssoInfo('My FX Trader Bot', 100000, None, None, 50, 3500, None, None, None, True, True),
+    35: FssoInfo('Level by Level', 750000, None, None, 50, 4500, 55000, 25000, 25000, True, False),
 }
 
 
@@ -227,6 +242,32 @@ def new_fsso_report_text(summary: dict) -> str:
     )
 
 
+def net_balance_usd(fsso_no: int, fees_usd) -> Decimal | None:
+    """Net Balance = equity target - RNL share - member share - fees paid (the fees converted to dollars).
+    It goes to the member. [OPEN: the exchange rate used to convert the Naira fees.]"""
+    remainder = FSSO_SCHEDULE[fsso_no].fet_remainder_usd
+    if remainder is None:
+        return None
+    return _money(Decimal(str(remainder)) - Decimal(str(fees_usd)))
+
+
+def requires_exit_acknowledgement(fsso_no: int) -> bool:
+    """FSSO33 to FSSO35 override lifetime access: the member must be warned and must confirm first."""
+    return FSSO_SCHEDULE[fsso_no].exits_rds
+
+
+def eligible_fssos(lifetime_profit_share_total) -> list[int]:
+    """FSSOs whose designated minimum fits inside the 50% ceiling (FSSO1 is funded by the
+    starter loan, so it is not part of this test)."""
+    cap = subsequent_capital_cap(lifetime_profit_share_total)
+    return [n for n, info in sorted(FSSO_SCHEDULE.items()) if n != 1 and _money(info.slave_min_usd) <= cap]
+
+
+def check_funding_for_fsso(fsso_no: int, amount, lifetime_profit_share_total) -> tuple[bool, str]:
+    """Same as check_funding_amount, using the designated minimum from the FSSO sheet."""
+    return check_funding_amount(amount, FSSO_SCHEDULE[fsso_no].slave_min_usd, lifetime_profit_share_total)
+
+
 def net_gift_report(won_amounts: list, loss_amounts: list) -> dict:
     """Count and sum of WON and LOSS cycles plus the NET cumulative figure,
     pushed to the member whenever they launch a new FSSO."""
@@ -296,7 +337,16 @@ if __name__ == "__main__":
     assert len(FSSO_SCHEDULE) == 35
     assert [n for n in FSSO_SCHEDULE if is_lifetime(n)] == [1, 2, 24, 26, 28, 29, 30, 33, 34, 35]
     assert FSSO_SCHEDULE[7].duration_days == 1460 and FSSO_SCHEDULE[7].renewal_fee_ngn == 30000
-    assert FSSO_SCHEDULE[28].admin_fee_ngn == 100000
+    assert FSSO_SCHEDULE[28].admin_fee_ngn == 250000 and FSSO_SCHEDULE[22].admin_fee_ngn == 500000
+    assert FSSO_SCHEDULE[22].renewal_fee_ngn == 200000 and FSSO_SCHEDULE[27].duration_days == 1095
+    assert FSSO_SCHEDULE[8].duration_days == 90 and FSSO_SCHEDULE[1].master_min_usd == 10
+    assert FSSO_SCHEDULE[35].slave_min_usd == 4500 and FSSO_SCHEDULE[3].equity_target_usd == 1075
+    assert [n for n, i in FSSO_SCHEDULE.items() if i.exits_rds] == [33, 34, 35]
+    assert [n for n, i in FSSO_SCHEDULE.items() if i.lifetime_ownership] == [33, 34]
+    assert net_balance_usd(3, 33.33) == Decimal("41.67") and net_balance_usd(33, 10) is None
+    assert requires_exit_acknowledgement(33) and requires_exit_acknowledgement(35) and not requires_exit_acknowledgement(32)
+    assert 2 in eligible_fssos(150) and 11 not in eligible_fssos(150) and 11 in eligible_fssos(900)
+    assert check_funding_for_fsso(11, 100, 400)[0] is True and check_funding_for_fsso(11, 100, 150)[0] is False
     assert loss_recovery_cap(400) == Decimal("200.00")
     assert check_funding_amount(150, 150, 400)[0] is True      # minimum within the $200 cap
     assert check_funding_amount(250, 150, 400)[0] is False     # above 50% of 400

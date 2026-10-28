@@ -46,6 +46,21 @@ SCHEMA = [
         at TIMESTAMPTZ NOT NULL DEFAULT now()
     )""",
     "CREATE INDEX IF NOT EXISTS events_member_idx ON events (telegram_id, at)",
+    """CREATE TABLE IF NOT EXISTS overrides (
+        id BIGSERIAL PRIMARY KEY,
+        rule_key TEXT NOT NULL,
+        target_type TEXT NOT NULL,
+        target_id BIGINT NOT NULL,
+        value TEXT,
+        reason TEXT NOT NULL,
+        granted_by BIGINT NOT NULL,
+        approved_by BIGINT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        expires_at TIMESTAMPTZ,
+        revoked_at TIMESTAMPTZ,
+        revoked_by BIGINT
+    )""",
+    "CREATE INDEX IF NOT EXISTS overrides_target_idx ON overrides (target_id, rule_key)",
 ]
 
 
@@ -82,6 +97,28 @@ class MemoryBackend:
 
     async def log_event(self, tid, event, detail):
         self.events.append((tid, event, detail))
+
+    async def record_override(self, rule_key, target_type, target_id, value, reason, granted_by, approved_by, expires_at):
+        self.overrides = getattr(self, "overrides", [])
+        oid = len(self.overrides) + 1
+        self.overrides.append(dict(id=oid, rule_key=rule_key, target_type=target_type, target_id=target_id, value=value,
+                                   reason=reason, granted_by=granted_by, approved_by=approved_by, expires_at=expires_at,
+                                   revoked_at=None, revoked_by=None))
+        return oid
+
+    async def active_overrides(self, target_id, rule_key):
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        return [o for o in getattr(self, "overrides", [])
+                if o["target_id"] == target_id and (rule_key is None or o["rule_key"] == rule_key)
+                and o["revoked_at"] is None and (o["expires_at"] is None or o["expires_at"] > now)]
+
+    async def revoke_override(self, oid, by):
+        from datetime import datetime, timezone
+        for o in getattr(self, "overrides", []):
+            if o["id"] == oid and o["revoked_at"] is None:
+                o["revoked_at"] = datetime.now(timezone.utc); o["revoked_by"] = by; return True
+        return False
 
 
 class PgBackend:
@@ -152,6 +189,30 @@ class PgBackend:
                               tid, event, detail)
         await self._run(f)
 
+    async def record_override(self, rule_key, target_type, target_id, value, reason, granted_by, approved_by, expires_at):
+        async def f(con):
+            return await con.fetchval(
+                "INSERT INTO overrides (rule_key, target_type, target_id, value, reason, granted_by, approved_by, expires_at) "
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+                rule_key, target_type, target_id, value, reason, granted_by, approved_by, expires_at)
+        return await self._run(f)
+
+    async def active_overrides(self, target_id, rule_key):
+        async def f(con):
+            rows = await con.fetch(
+                "SELECT id, rule_key, target_type, target_id, value, reason, granted_by, approved_by, created_at, expires_at "
+                "FROM overrides WHERE target_id = $1 AND ($2::text IS NULL OR rule_key = $2) "
+                "AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()) ORDER BY id", target_id, rule_key)
+            return [dict(r) for r in rows]
+        return await self._run(f)
+
+    async def revoke_override(self, oid, by):
+        async def f(con):
+            r = await con.execute("UPDATE overrides SET revoked_at = now(), revoked_by = $2 "
+                                  "WHERE id = $1 AND revoked_at IS NULL", oid, by)
+            return r.endswith("1")
+        return await self._run(f)
+
 
 _backend = MemoryBackend()
 
@@ -212,6 +273,20 @@ async def advance_progress(tid: int, section: int) -> int:
 async def reset_member(tid: int) -> None:
     await _backend.reset(tid)
     await _backend.log_event(tid, "reset", None)
+
+
+async def record_override(rule_key, target_type, target_id, value, reason, granted_by, approved_by, expires_at) -> int:
+    new_id = await _backend.record_override(rule_key, target_type, target_id, value, reason, granted_by, approved_by, expires_at)
+    await _backend.log_event(target_id, "override_granted", f"{rule_key} by {granted_by}")
+    return new_id
+
+
+async def active_overrides(target_id: int, rule_key: str | None = None) -> list:
+    return await _backend.active_overrides(target_id, rule_key)
+
+
+async def revoke_override(override_id: int, by: int) -> bool:
+    return await _backend.revoke_override(override_id, by)
 
 
 async def safe(coro) -> None:

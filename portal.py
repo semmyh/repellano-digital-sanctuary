@@ -9,6 +9,7 @@ What happens:
 """
 import os
 import asyncio
+import hashlib
 import logging
 from pathlib import Path
 
@@ -16,6 +17,9 @@ from aiogram import Bot
 from aiogram.enums import ParseMode
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from aiohttp import web
+
+import db
+import tgauth
 
 log = logging.getLogger("repellano.portal")
 
@@ -98,11 +102,61 @@ def _load_portal_html() -> str:
 
 
 PORTAL_HTML = _load_portal_html()
+_PORTAL_ETAG = '"' + hashlib.sha1(PORTAL_HTML.encode("utf-8")).hexdigest()[:16] + '"'
 
 
 async def portal_page(request: web.Request) -> web.Response:
-    return web.Response(
-        text=PORTAL_HTML,
-        content_type="text/html",
-        headers={"Cache-Control": "no-store"},
-    )
+    """The page is compressed and tagged with an ETag, so a returning member's phone only
+    re-downloads it when it has really changed (a quick 304 answer otherwise)."""
+    headers = {"ETag": _PORTAL_ETAG, "Cache-Control": "no-cache"}
+    if request.headers.get("If-None-Match") == _PORTAL_ETAG:
+        return web.Response(status=304, headers=headers)
+    resp = web.Response(text=PORTAL_HTML, content_type="text/html", headers=headers)
+    try:
+        resp.enable_compression()
+    except Exception:
+        pass
+    return resp
+
+
+# --- PROGRESS API (used by portal.html; every call is checked against Telegram's signature) ---
+def _json(data: dict, status: int = 200) -> web.Response:
+    return web.json_response(data, status=status, headers={"Cache-Control": "no-store"})
+
+
+def _member(request: web.Request):
+    token = os.getenv("BOT_TOKEN", "").strip()
+    return tgauth.validate_init_data(request.headers.get("X-Telegram-Init-Data", ""), token)
+
+
+async def api_get_progress(request: web.Request) -> web.Response:
+    user = _member(request)
+    if not user:
+        return _json({"error": "unauthorized"}, 401)
+    if not db.enabled():
+        return _json({"enabled": False})
+    try:
+        return _json({"enabled": True, "completed": await db.get_progress(user["id"])})
+    except Exception:
+        log.exception("get_progress failed")
+        return _json({"enabled": False})
+
+
+async def api_mark_read(request: web.Request) -> web.Response:
+    user = _member(request)
+    if not user:
+        return _json({"error": "unauthorized"}, 401)
+    if not db.enabled():
+        return _json({"enabled": False})
+    try:
+        body = await request.json()
+        section = int(body.get("section"))
+    except Exception:
+        return _json({"error": "bad request"}, 400)
+    if not 0 <= section < db.TOTAL_SECTIONS:
+        return _json({"error": "bad request"}, 400)
+    try:
+        return _json({"enabled": True, "completed": await db.advance_progress(user["id"], section)})
+    except Exception:
+        log.exception("advance_progress failed")
+        return _json({"enabled": False})

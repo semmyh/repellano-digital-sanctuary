@@ -9,12 +9,13 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest, TelegramRetryAfter
-from aiogram.filters import CommandStart
+from aiogram.filters import Command, CommandStart
 from aiogram.types import (
     Message, CallbackQuery, ErrorEvent, InlineKeyboardMarkup, InlineKeyboardButton
 )
 from aiohttp import web
 
+import db
 import phase2
 import portal
 
@@ -25,6 +26,8 @@ log = logging.getLogger("repellano")
 # --- ENVIRONMENT CONFIGURATIONS ---
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 CHANNEL_ID = os.getenv("CHANNEL_ID", "@RDSTracks")
+# Telegram IDs allowed to use /resetme for testing (comma separated, set on Render as ADMIN_IDS)
+ADMIN_IDS = {int(x) for x in os.getenv("ADMIN_IDS", "").replace(" ", "").split(",") if x.lstrip("-").isdigit()}
 
 CONFIGS = {
     "en": {"msg_id": 6, "duration": 250, "title": "English"},    # 240s song + 10s
@@ -299,12 +302,28 @@ async def begin_flow(user_id: int, name: str, trigger_msg_id: int | None) -> Non
     session["to_wipe"].append(greeting.message_id)
 
     asyncio.create_task(wipe_old_quietly(user_id, old, greeting.message_id))
+    asyncio.create_task(db.safe(db.upsert_member(user_id, name)))
 
 
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     user_id = message.from_user.id
     log.info("/start received from %s", user_id)
+    await begin_flow(user_id, message.from_user.first_name or "Leno", message.message_id)
+
+
+@dp.message(Command("myid"))
+async def cmd_myid(message: Message) -> None:
+    await message.answer(f"Your Telegram ID: {message.from_user.id}", parse_mode=None)
+
+
+@dp.message(Command("resetme"))
+async def cmd_resetme(message: Message) -> None:
+    """Testing helper: wipes the tester's saved progress and restarts the whole flow."""
+    user_id = message.from_user.id
+    if user_id not in ADMIN_IDS:
+        return
+    await db.safe(db.reset_member(user_id))
     await begin_flow(user_id, message.from_user.first_name or "Leno", message.message_id)
 
 
@@ -429,6 +448,7 @@ async def on_confirm(cb: CallbackQuery) -> None:
 
     session["phase"] = "confirming"  # blocks double taps
     await cb.answer()
+    asyncio.create_task(db.safe(db.record_anthem_complete(user_id, session.get("lang"))))
 
     # Wipe audio, lyrics, control message, greeting and the user's /start (this user only)
     await total_sweep(user_id, session)
@@ -463,6 +483,8 @@ async def start_web_server():
     app = web.Application()
     app.router.add_get("/", health_handler)
     app.router.add_get("/portal", portal.portal_page)
+    app.router.add_get("/api/progress", portal.api_get_progress)
+    app.router.add_post("/api/progress/read", portal.api_mark_read)
     runner = web.AppRunner(app)
     await runner.setup()
     port = int(os.getenv("PORT", "10000"))
@@ -478,6 +500,7 @@ async def start_bot_polling():
 
 
 async def main():
+    await db.init()
     await asyncio.gather(
         start_web_server(),
         start_bot_polling(),

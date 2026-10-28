@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#05201b">
 <title>Repellano Corporate Portal</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script async src="https://telegram.org/js/telegram-web-app.js" onload="window.__tgLoaded&&window.__tgLoaded()"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,650&display=swap" rel="stylesheet">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,650&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,650&display=swap"></noscript>
 <style>
   /* ---------- Brand tokens: Night Emerald, Ivory, Lantern Amber ---------- */
   :root {
@@ -46,12 +47,12 @@
   #splash.leave { opacity: 0; visibility: hidden; }
   .splash-arch { width: 124px; height: auto; overflow: visible; }
   .splash-arch .line { fill: none; stroke: var(--amber); stroke-width: 2.2; stroke-linecap: round;
-    stroke-dasharray: 420; stroke-dashoffset: 420; animation: draw 1.3s cubic-bezier(.6,.05,.3,1) .15s forwards; }
-  .splash-arch .glow { fill: url(#lantern); opacity: 0; animation: light 1.1s ease 1.2s forwards; }
-  .splash-arch .flame { fill: var(--amber); opacity: 0; animation: light .8s ease 1.5s forwards; }
+    stroke-dasharray: 420; stroke-dashoffset: 420; animation: draw .8s cubic-bezier(.6,.05,.3,1) .05s forwards; }
+  .splash-arch .glow { fill: url(#lantern); opacity: 0; animation: light .6s ease .65s forwards; }
+  .splash-arch .flame { fill: var(--amber); opacity: 0; animation: light .5s ease .85s forwards; }
   .wordmark { margin-top: 26px; font: 650 34px/1 var(--serif); letter-spacing: .14em; opacity: 0;
-    animation: rise .9s ease 1.5s forwards; }
-  .sub { margin-top: 10px; color: var(--sage); font-size: 15px; opacity: 0; animation: rise .9s ease 1.75s forwards; }
+    animation: rise .5s ease .75s forwards; }
+  .sub { margin-top: 10px; color: var(--sage); font-size: 15px; opacity: 0; animation: rise .5s ease .9s forwards; }
   @keyframes draw { to { stroke-dashoffset: 0; } }
   @keyframes light { to { opacity: 1; } }
   @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -253,7 +254,7 @@
 (function () {
   "use strict";
 
-  var tg = window.Telegram && window.Telegram.WebApp;
+  var tg = null;  // attached as soon as Telegram's script has loaded (the page does not wait for it)
   var STORE_KEY = "rds_portal_v1";
   var CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="#05201b" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 
@@ -305,6 +306,7 @@
 
   /* ---------- State: completed = sections marked read (0-6); view 0-5, or 6 = thank you ---------- */
   var state = { completed: 0, view: 0 };
+  var moved = false;  // true once the reader has navigated themselves
 
   var el = {
     splash: document.getElementById("splash"), app: document.getElementById("app"),
@@ -324,21 +326,6 @@
     try { if (tg && tg.CloudStorage) { tg.CloudStorage.setItem(STORE_KEY, data); } } catch (e) {}
     try { window.localStorage.setItem(STORE_KEY, data); } catch (e) {}
   }
-  function loadLocal(done) {
-    var finished = false;
-    function finish(raw) {
-      if (finished) { return; } finished = true;
-      try { var d = JSON.parse(raw || "{}"); if (typeof d.completed === "number") { state.completed = Math.max(0, Math.min(SECTIONS.length, d.completed)); } } catch (e) {}
-      done();
-    }
-    setTimeout(function () { finish(null); }, 1500);
-    try {
-      if (tg && tg.CloudStorage) { tg.CloudStorage.getItem(STORE_KEY, function (err, val) { finish(err ? null : val); }); return; }
-    } catch (e) {}
-    var local = null; try { local = window.localStorage.getItem(STORE_KEY); } catch (e) {}
-    finish(local);
-  }
-
   /* ---------- Server records (Neon database). Falls back to the local copy above if unavailable ---------- */
   var useServer = false, serverCompleted = 0, syncing = false, syncFails = 0;
 
@@ -352,18 +339,6 @@
       if (!r.ok) { throw new Error("http " + r.status); }
       return r.json();
     });
-  }
-
-  function loadProgress(done) {
-    if (tg && tg.initData) {
-      api("/api/progress").then(function (d) {
-        if (d && d.enabled && typeof d.completed === "number") {
-          useServer = true; serverCompleted = d.completed;
-          state.completed = Math.max(0, Math.min(SECTIONS.length, d.completed));
-          done();
-        } else { loadLocal(done); }
-      }).catch(function () { loadLocal(done); });
-    } else { loadLocal(done); }
   }
 
   /* Sends "section N was read" to the server, one section at a time, until it has caught up. */
@@ -449,6 +424,7 @@
   }
 
   function goTo(i, btn) {
+    moved = true;
     if (i > state.completed) {                       // locked: future sections stay shut
       haptic("i", "light");
       if (btn) { btn.classList.add("shake"); setTimeout(function () { btn.classList.remove("shake"); }, 400); }
@@ -459,6 +435,7 @@
   }
 
   el.cta.addEventListener("click", function () {
+    moved = true;
     haptic("i", "medium");
     if (state.view >= SECTIONS.length) { if (tg && tg.close) { tg.close(); } return; }
     if (state.view === state.completed) {            // marking this section as read unlocks the next
@@ -467,7 +444,7 @@
     state.view = state.view + 1;                     // 6 means the thank-you screen
     render();
   });
-  el.back.addEventListener("click", function () { haptic("i", "light"); if (state.view > 0) { state.view -= 1; render(); } });
+  el.back.addEventListener("click", function () { moved = true; haptic("i", "light"); if (state.view > 0) { state.view -= 1; render(); } });
 
   /* Table of contents (menu button appears once every section has been read) */
   function openSheet() {
@@ -497,25 +474,62 @@
     return null;
   }
 
-  if (tg) {
+  function clamp(n) { return Math.max(0, Math.min(SECTIONS.length, n)); }
+
+  function readLocal() {
+    try { var d = JSON.parse(window.localStorage.getItem(STORE_KEY) || "{}"); return typeof d.completed === "number" ? clamp(d.completed) : 0; } catch (e) { return 0; }
+  }
+
+  /* Applies progress that arrives after the first paint. The server is authoritative; Telegram's cloud copy can only move it forward. */
+  function setCompleted(n, authoritative) {
+    n = clamp(n);
+    if (n === state.completed || (!authoritative && n < state.completed)) { return; }
+    state.completed = n; save();
+    if (!moved) { state.view = n >= SECTIONS.length ? SECTIONS.length : Math.min(n, LAST); }
+    else if (state.view < SECTIONS.length && state.view > n) { state.view = n; }
+    render();
+  }
+
+  function syncInBackground() {
+    function fromCloud() {
+      try {
+        if (tg.CloudStorage) {
+          tg.CloudStorage.getItem(STORE_KEY, function (err, val) {
+            try { var d = JSON.parse(val || "{}"); if (typeof d.completed === "number") { setCompleted(d.completed, false); } } catch (e) {}
+          });
+        }
+      } catch (e) {}
+    }
+    if (tg.initData) {
+      api("/api/progress").then(function (d) {
+        if (d && d.enabled && typeof d.completed === "number") { useServer = true; serverCompleted = d.completed; setCompleted(d.completed, true); flush(); }
+        else { fromCloud(); }
+      }).catch(fromCloud);
+    } else { fromCloud(); }
+  }
+
+  function attachTelegram() {
+    if (tg || !(window.Telegram && window.Telegram.WebApp)) { return; }
+    tg = window.Telegram.WebApp;
     try { tg.ready(); tg.expand(); } catch (e) {}
     try { tg.setHeaderColor("#05201b"); tg.setBackgroundColor("#05201b"); } catch (e) {}
     try { if (tg.disableVerticalSwipes) { tg.disableVerticalSwipes(); } } catch (e) {}
+    syncInBackground();
   }
+  window.__tgLoaded = attachTelegram;
 
+  /* Paint straight away from the copy on this device; Telegram's script, fonts and the server catch up in the background. */
   var splashStart = Date.now();
-  loadProgress(function () {
-    var link = deepLink();
-    if (state.completed >= SECTIONS.length) { state.view = SECTIONS.length; }        // finished: show thank-you, menu available
-    else { state.view = Math.min(state.completed, LAST); }                            // resume where they stopped
-    if (link !== null) { state.view = link; }
-    render();
-    var wait = Math.max(0, 2600 - (Date.now() - splashStart));                        // let the splash finish its one sequence
-    setTimeout(function () {
-      el.app.hidden = false; el.splash.classList.add("leave");
-      setTimeout(function () { el.splash.remove(); }, 700);
-    }, wait);
-  });
+  state.completed = readLocal();
+  var link = deepLink();
+  state.view = state.completed >= SECTIONS.length ? SECTIONS.length : Math.min(state.completed, LAST);
+  if (link !== null) { state.view = link; }
+  render();
+  setTimeout(function () {
+    el.app.hidden = false; el.splash.classList.add("leave");
+    setTimeout(function () { el.splash.remove(); }, 600);
+  }, Math.max(0, 1100 - (Date.now() - splashStart)));
+  attachTelegram();
 })();
 </script>
 </body>
