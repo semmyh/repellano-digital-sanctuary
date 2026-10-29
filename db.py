@@ -86,6 +86,10 @@ class MemoryBackend:
     async def get_progress(self, tid):
         return self._m(tid)["portal_completed"]
 
+    async def member_state(self, tid):
+        m = self._m(tid)
+        return bool(m["anthem_done"]), m["portal_completed"]
+
     async def advance(self, tid, section):
         m = self._m(tid)
         if m["portal_completed"] == section and section < TOTAL_SECTIONS:
@@ -159,6 +163,16 @@ class PgBackend:
         async def f(con):
             v = await con.fetchval("SELECT portal_completed FROM members WHERE telegram_id = $1", tid)
             return int(v or 0)
+        return await self._run(f)
+
+    async def member_state(self, tid):
+        async def f(con):
+            row = await con.fetchrow(
+                "SELECT portal_completed, (anthem_completed_at IS NOT NULL) AS anthem_done "
+                "FROM members WHERE telegram_id = $1", tid)
+            if not row:
+                return False, 0
+            return bool(row["anthem_done"]), int(row["portal_completed"])
         return await self._run(f)
 
     async def advance(self, tid, section):
@@ -258,6 +272,11 @@ async def record_anthem_complete(tid: int, lang: str | None) -> None:
 
 async def get_progress(tid: int) -> int:
     return await _backend.get_progress(tid)
+
+
+async def member_state(tid: int) -> tuple[bool, int]:
+    """(has the member finished the Anthem?, how many portal sections have they read?)"""
+    return await _backend.member_state(tid)
 
 
 async def advance_progress(tid: int, section: int) -> int:

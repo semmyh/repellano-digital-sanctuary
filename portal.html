@@ -4,6 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#05201b">
+<script>
+/* Tell Telegram the page is up straight away, so its grey loading panel disappears at once
+   (it used to wait for Telegram's own script to download first). */
+(function () {
+  function post(type, data) {
+    try {
+      if (window.TelegramWebviewProxy && window.TelegramWebviewProxy.postEvent) { window.TelegramWebviewProxy.postEvent(type, JSON.stringify(data || {})); }
+      else if (window.external && "notify" in window.external) { window.external.notify(JSON.stringify({ eventType: type, eventData: data || {} })); }
+      else if (window.parent && window.parent !== window) { window.parent.postMessage(JSON.stringify({ eventType: type, eventData: data || {} }), "*"); }
+    } catch (e) {}
+  }
+  post("web_app_ready"); post("web_app_expand");
+})();
+</script>
 <title>Repellano Corporate Portal</title>
 <script async src="https://telegram.org/js/telegram-web-app.js" onload="window.__tgLoaded&&window.__tgLoaded()"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -166,6 +180,12 @@
   .arch.lit { background: radial-gradient(90% 90% at 50% 90%, rgba(245,185,74,.85), rgba(245,185,74,.1) 75%); border-color: var(--amber); }
   .arch.lit svg { width: 46px; height: 46px; }
 
+  .skeleton { display: grid; gap: 12px; margin-top: 6px; }
+  .skeleton i { display: block; height: 16px; border-radius: 8px; background: linear-gradient(90deg, var(--moss) 25%, #124a3c 50%, var(--moss) 75%); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+  .skeleton i:nth-child(2) { width: 92%; } .skeleton i:nth-child(3) { width: 78%; } .skeleton i:nth-child(4) { width: 55%; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  .cta:disabled { opacity: .5; filter: saturate(.6); cursor: default; box-shadow: none; }
+
   /* ---------- Bottom bar ---------- */
   .bar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; max-width: 560px; margin: 0 auto;
@@ -259,47 +279,14 @@
   var CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="#05201b" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 
   /* ---------- Content ---------- */
+  // The text of each section is NOT in this page. The server sends it only to a verified member who has unlocked it.
   var SECTIONS = [
-    { slug: "who", title: "Who we are", html:
-      '<p class="lead">Repellano Nigeria Limited (RNL) is an uncommon provider of financial support services, built on a “zero-risk” philosophy.</p>' +
-      '<p>We never charge you fees upfront and never trade with your money. We trade with our own capital: any profit we generate is ours, and a share of it is gifted to you as a cash loan.</p>' +
-      '<div class="note"><p>To secure your $10 starter loan, you place a refundable $10 security deposit in escrow with a third-party processor. RNL never collects it.</p></div>' +
-      '<p style="margin-top:22px">We are politically neutral and do not promote any political cause. We also do not, and cannot, have all the solutions to human needs.</p>' },
-
-    { slug: "structure", title: "Corporate structure and leadership", html:
-      '<p class="lead">We are led by 62 visionaries.</p>' +
-      '<div class="leaders">' +
-        '<div class="leader"><div class="mini lit">1</div><small>Group Managing Director</small></div>' +
-        '<div class="leader"><div class="mini">11</div><small>Executive Directors</small></div>' +
-        '<div class="leader"><div class="mini">50</div><small>CEOs</small></div>' +
-      '</div>' +
-      '<p>This fairly 1:5 leadership ratio ensures precision and top-level oversight.</p>' +
-      '<p>Each of them brings a wealth of experience and wisdom to ensure clinical delivery of the Sanctuary’s promises.</p>' },
-
-    { slug: "digital", title: "Digital infrastructure and automation", html:
-      '<p class="lead">The Repellano Digital Sanctuary is built on native Telegram, so profiling, onboarding and every service happen right here in your chat.</p>' +
-      '<ul class="principles"><li>Protective</li><li>Defensive</li><li>Anti-predatory</li><li>Integrated</li></ul>' +
-      '<p>Automation delivers each service with speed and surgical precision.</p>' },
-
-    { slug: "fssos", title: "Financial Support Service Offerings", html:
-      '<div class="count">35</div>' +
-      '<p class="lead">specialised Financial Support Service Offerings (FSSOs).</p>' +
-      '<div class="fssos" id="fssoGrid" aria-hidden="true"></div>' +
-      '<p style="margin-top:18px">Each FSSO is a precision-engineered tool that solves a specific financial need.</p>' },
-
-    { slug: "started", title: "How we help you get started", html:
-      '<ol class="path">' +
-        '<li>We give you a <b>$10 loan</b> to trade forex.</li>' +
-        '<li>We give you our <b>automated trading system</b>.</li>' +
-        '<li>If a trade ends in a loss, we give you another $10 loan for the next trade, and we repeat this until a trade wins.</li>' +
-        '<li>A winning trade produces <b>$150</b> for you. Walk away with it, no questions asked, or use all or part of it to make more.</li>' +
-      '</ol>' +
-      '<p>You get this solid foundation only once in your lifetime.</p>' +
-      '<div class="note"><p>Your $10 security deposit comes back to you on your first WIN, or if you walk away after a LOSS.</p></div>' },
-
-    { slug: "advice", title: "Our advice to you", html:
-      '<blockquote>Decide wisely what to do with your earnings.</blockquote>' +
-      '<p class="lead">Always remember that the cash is a loan given to you, and RNL will never ask for it back.</p>' }
+    { slug: "who", title: "Who we are" },
+    { slug: "structure", title: "Corporate structure and leadership" },
+    { slug: "digital", title: "Digital infrastructure and automation" },
+    { slug: "fssos", title: "Financial Support Service Offerings" },
+    { slug: "started", title: "How we help you get started" },
+    { slug: "advice", title: "Our advice to you" },
   ];
   var LAST = SECTIONS.length - 1;
   var START_PARAMS = { who: 0, structure: 1, digital: 2, fssos: 3, started: 4, advice: 5 };
@@ -320,25 +307,77 @@
     try { if (tg && tg.HapticFeedback) { kind === "n" ? tg.HapticFeedback.notificationOccurred(type) : tg.HapticFeedback.impactOccurred(type); } } catch (e) {}
   }
 
-  /* ---------- Persistence: Telegram CloudStorage (per member, any device), localStorage fallback ---------- */
-  function save() {
-    var data = JSON.stringify({ completed: state.completed });
-    try { if (tg && tg.CloudStorage) { tg.CloudStorage.setItem(STORE_KEY, data); } } catch (e) {}
-    try { window.localStorage.setItem(STORE_KEY, data); } catch (e) {}
+  /* ---------- Local copy: only for a fast first paint ---------- */
+  var CONTENT_KEY = "rds_content_v2";
+  var content = {};   // section number -> html; holds ONLY sections the server has already unlocked for this member
+  try { content = JSON.parse(window.localStorage.getItem(CONTENT_KEY) || "{}") || {}; } catch (e) { content = {}; }
+  var noticeShown = false, noticeAction = null;
+
+  function save() { try { window.localStorage.setItem(STORE_KEY, JSON.stringify({ completed: state.completed })); } catch (e) {} }
+  function saveContent() { try { window.localStorage.setItem(CONTENT_KEY, JSON.stringify(content)); } catch (e) {} }
+
+  /* ---------- Server (Neon database): progress and the locked section text ---------- */
+  var useServer = false, serverCompleted = 0, syncing = false, syncFails = 0, syncStarted = false;
+
+  function getInitData() {
+    var d = tg && tg.initData;
+    if (d) { return d; }
+    try { return new URLSearchParams(window.location.hash.slice(1)).get("tgWebAppData") || ""; } catch (e) { return ""; }
   }
-  /* ---------- Server records (Neon database). Falls back to the local copy above if unavailable ---------- */
-  var useServer = false, serverCompleted = 0, syncing = false, syncFails = 0;
 
   function api(path, opts) {
     opts = opts || {};
-    opts.headers = Object.assign({ "X-Telegram-Init-Data": (tg && tg.initData) || "" }, opts.headers || {});
+    opts.headers = Object.assign({ "X-Telegram-Init-Data": getInitData() }, opts.headers || {});
     var timer = null;
-    if (window.AbortController) { var ctrl = new AbortController(); opts.signal = ctrl.signal; timer = setTimeout(function () { ctrl.abort(); }, 6000); }
+    if (window.AbortController) { var ctrl = new AbortController(); opts.signal = ctrl.signal; timer = setTimeout(function () { ctrl.abort(); }, 8000); }
     return fetch(path, opts).then(function (r) {
       if (timer) { clearTimeout(timer); }
       if (!r.ok) { throw new Error("http " + r.status); }
       return r.json();
     });
+  }
+
+  function acceptSections(map, prune) {
+    var fresh = false, viewChanged = false;
+    if (prune) {   // the server is the truth: forget any text it has not unlocked
+      Object.keys(content).forEach(function (k) { if (!map || !map[k]) { delete content[k]; fresh = true; } });
+    }
+    Object.keys(map || {}).forEach(function (k) {
+      var i = parseInt(k, 10);
+      if (!(i >= 0 && i < SECTIONS.length) || !map[k] || typeof map[k].html !== "string") { return; }
+      if (content[i] !== map[k].html) { content[i] = map[k].html; fresh = true; if (i === state.view) { viewChanged = true; } }
+    });
+    if (fresh) { saveContent(); }
+    if (viewChanged) { render(); }
+  }
+
+  function closePortal() { try { if (tg && tg.close) { tg.close(); } } catch (e) {} }
+
+  function showNotice(title, text, label, action) {
+    noticeShown = true; noticeAction = action || null;
+    el.progress.innerHTML = ""; el.menu.hidden = true; el.back.hidden = true;
+    el.stage.innerHTML = '<article class="sec"><div class="arch" aria-hidden="true">·</div><h1>' + title + '</h1><p class="lead">' + text + '</p></article>';
+    el.cta.disabled = false; el.cta.hidden = !label; el.cta.textContent = label || "";
+  }
+
+  function doSync() {
+    api("/api/progress").then(function (d) {
+      if (d && d.gate === "anthem") {
+        showNotice("One step first", "Please finish the Anthem in the chat, then open the Corporate Portal again.", "Back to the chat", closePortal); return;
+      }
+      if (d && d.enabled === false) { acceptSections(d.sections, false); return; }   // database switched off (testing): this device only
+      useServer = true; serverCompleted = d.completed;
+      acceptSections(d.sections, true); setCompleted(d.completed, true); flush();
+    }).catch(function () {
+      if (!content[state.view]) {
+        showNotice("Connection problem", "We could not load the portal. Please check your connection and try again.", "Try again", function () { window.location.reload(); });
+      }
+    });
+  }
+
+  function trySync() {
+    if (syncStarted || !getInitData()) { return; }
+    syncStarted = true; doSync();
   }
 
   /* Sends "section N was read" to the server, one section at a time, until it has caught up. */
@@ -349,8 +388,9 @@
     api("/api/progress/read", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ section: before }) })
       .then(function (d) {
         syncing = false; syncFails = 0;
+        if (d && d.gate === "anthem") { showNotice("One step first", "Please finish the Anthem in the chat first.", "Back to the chat", closePortal); return; }
         if (d && d.enabled && typeof d.completed === "number") {
-          serverCompleted = d.completed;
+          serverCompleted = d.completed; acceptSections(d.sections, false);
           if (d.completed < state.completed && d.completed <= before) {      // server disagrees: trust the server
             state.completed = d.completed; state.view = Math.min(state.view, d.completed); render(); return;
           }
@@ -380,9 +420,10 @@
   }
 
   function renderSection(i) {
-    var s = SECTIONS[i];
-    el.stage.innerHTML = '<article class="sec"><div class="arch" aria-hidden="true">' + (i + 1) + '</div><h1>' + s.title + '</h1>' + s.html + '</article>';
-    if (s.slug === "fssos") { lightGrid(); }
+    var s = SECTIONS[i], html = content[i];
+    var body = html || '<div class="skeleton" aria-label="Loading"><i></i><i></i><i></i><i></i></div>';
+    el.stage.innerHTML = '<article class="sec"><div class="arch" aria-hidden="true">' + (i + 1) + '</div><h1>' + s.title + '</h1>' + body + '</article>';
+    if (html && s.slug === "fssos") { lightGrid(); }
   }
 
   function lightGrid() {
@@ -396,14 +437,16 @@
     el.stage.innerHTML = '<article class="sec thanks"><div class="arch lit" aria-hidden="true">' + CHECK + '</div>' +
       '<h1>Thank you</h1>' +
       '<p class="lead">You have completed the introduction to Repellano Nigeria Limited.</p>' +
-      '<p class="muted">Use the menu at the top right to revisit any section.</p></article>';
+      '<p class="muted">Your next step is waiting for you in the chat. Use the menu at the top right to revisit any section.</p></article>';
   }
 
   function render() {
+    if (noticeShown) { return; }
     renderProgress();
     if (state.view >= SECTIONS.length) {
       renderThanks();
       el.cta.textContent = "Continue in the chat";
+      el.cta.disabled = false;
       el.back.hidden = false;
     } else {
       renderSection(state.view);
@@ -411,6 +454,7 @@
       if (state.view === state.completed) { el.cta.textContent = "I’ve Read This"; }
       else if (state.view === LAST) { el.cta.textContent = "Finish"; }
       else { el.cta.textContent = "Next"; }
+      el.cta.disabled = !content[state.view];    // wait until the server has sent this section's text
     }
     window.scrollTo(0, 0);
     try { el.stage.focus({ preventScroll: true }); } catch (e) {}
@@ -435,6 +479,8 @@
   }
 
   el.cta.addEventListener("click", function () {
+    if (noticeShown) { if (noticeAction) { noticeAction(); } return; }
+    if (el.cta.disabled) { return; }
     moved = true;
     haptic("i", "medium");
     if (state.view >= SECTIONS.length) { if (tg && tg.close) { tg.close(); } return; }
@@ -490,31 +536,13 @@
     render();
   }
 
-  function syncInBackground() {
-    function fromCloud() {
-      try {
-        if (tg.CloudStorage) {
-          tg.CloudStorage.getItem(STORE_KEY, function (err, val) {
-            try { var d = JSON.parse(val || "{}"); if (typeof d.completed === "number") { setCompleted(d.completed, false); } } catch (e) {}
-          });
-        }
-      } catch (e) {}
-    }
-    if (tg.initData) {
-      api("/api/progress").then(function (d) {
-        if (d && d.enabled && typeof d.completed === "number") { useServer = true; serverCompleted = d.completed; setCompleted(d.completed, true); flush(); }
-        else { fromCloud(); }
-      }).catch(fromCloud);
-    } else { fromCloud(); }
-  }
-
   function attachTelegram() {
     if (tg || !(window.Telegram && window.Telegram.WebApp)) { return; }
     tg = window.Telegram.WebApp;
     try { tg.ready(); tg.expand(); } catch (e) {}
     try { tg.setHeaderColor("#05201b"); tg.setBackgroundColor("#05201b"); } catch (e) {}
     try { if (tg.disableVerticalSwipes) { tg.disableVerticalSwipes(); } } catch (e) {}
-    syncInBackground();
+    trySync();
   }
   window.__tgLoaded = attachTelegram;
 
@@ -530,6 +558,12 @@
     setTimeout(function () { el.splash.remove(); }, 600);
   }, Math.max(0, 1100 - (Date.now() - splashStart)));
   attachTelegram();
+  trySync();
+  setTimeout(function () {   // opened outside Telegram: no signed identity, so no content
+    if (!syncStarted && !noticeShown) {
+      showNotice("Please open this from Telegram", "Open the Repellano bot in Telegram and tap Open Corporate Portal.", null);
+    }
+  }, 3500);
 })();
 </script>
 </body>

@@ -474,6 +474,25 @@ async def on_error(event: ErrorEvent) -> bool:
     return True
 
 
+# --- PORTAL FINISHED: move the member on in the chat ---
+async def portal_completed(user_id: int) -> None:
+    """Runs once when a member reads the sixth portal section. The 'Welcome to RNL' message is
+    removed and the next step (Phase 3, General Rules and Limitations) appears in its place."""
+    session = USER_SESSIONS.get(user_id)
+    if session is None:                 # the bot was restarted since the Anthem: start a fresh record
+        session = new_session()
+        USER_SESSIONS[user_id] = session
+    old_ids = [i for i in session.get("to_wipe", []) if i]
+    session["to_wipe"] = []
+    await phase2.start(bot, user_id, session)         # sends page 1 and records it for the next sweep
+    if old_ids:
+        await delete_messages_safe(user_id, old_ids)
+    log.info("Portal completed by user %s: Phase 3 started", user_id)
+
+
+portal.on_complete = portal_completed
+
+
 # --- WEB FRAMEWORK STATUS PORTS ---
 async def health_handler(request):
     return web.Response(text="Server Online.")

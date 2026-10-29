@@ -8,6 +8,7 @@ What happens:
      The portal (portal.html) holds the six sequential sections.
 """
 import os
+import time
 import asyncio
 import hashlib
 import logging
@@ -18,10 +19,14 @@ from aiogram.enums import ParseMode
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from aiohttp import web
 
+import content
 import db
 import tgauth
 
 log = logging.getLogger("repellano.portal")
+
+# bot.py sets this to an async function(user_id) that runs once when a member finishes all six sections
+on_complete = None
 
 PAUSE_SECONDS = 0  # no pause: the welcome appears the instant the clean sweep ends
 
@@ -119,7 +124,7 @@ async def portal_page(request: web.Request) -> web.Response:
     return resp
 
 
-# --- PROGRESS API (used by portal.html; every call is checked against Telegram's signature) ---
+# --- PROGRESS AND CONTENT API (used by portal.html; every call is checked against Telegram's signature) ---
 def _json(data: dict, status: int = 200) -> web.Response:
     return web.json_response(data, status=status, headers={"Cache-Control": "no-store"})
 
@@ -129,17 +134,35 @@ def _member(request: web.Request):
     return tgauth.validate_init_data(request.headers.get("X-Telegram-Init-Data", ""), token)
 
 
+def _unlocked(completed: int) -> dict:
+    """The text of every section this member has unlocked: the ones already read, plus the next one."""
+    top = min(completed, content.TOTAL - 1)
+    return {str(i): {"html": content.SECTIONS[i]["html"]} for i in range(top + 1)}
+
+
 async def api_get_progress(request: web.Request) -> web.Response:
+    t0 = time.monotonic()
+    try:
+        return await _get_progress(request)
+    finally:
+        log.info("GET /api/progress took %d ms", (time.monotonic() - t0) * 1000)
+
+
+async def _get_progress(request: web.Request) -> web.Response:
     user = _member(request)
     if not user:
         return _json({"error": "unauthorized"}, 401)
     if not db.enabled():
-        return _json({"enabled": False})
+        # No database configured (testing only): nothing can be enforced, so everything is shown.
+        return _json({"enabled": False, "sections": _unlocked(content.TOTAL)})
     try:
-        return _json({"enabled": True, "completed": await db.get_progress(user["id"])})
+        anthem_done, completed = await db.member_state(user["id"])
     except Exception:
-        log.exception("get_progress failed")
-        return _json({"enabled": False})
+        log.exception("member_state failed")
+        return _json({"error": "busy"}, 503)
+    if not anthem_done:
+        return _json({"enabled": True, "gate": "anthem"})
+    return _json({"enabled": True, "completed": completed, "sections": _unlocked(completed)})
 
 
 async def api_mark_read(request: web.Request) -> web.Response:
@@ -153,10 +176,26 @@ async def api_mark_read(request: web.Request) -> web.Response:
         section = int(body.get("section"))
     except Exception:
         return _json({"error": "bad request"}, 400)
-    if not 0 <= section < db.TOTAL_SECTIONS:
+    if not 0 <= section < content.TOTAL:
         return _json({"error": "bad request"}, 400)
     try:
-        return _json({"enabled": True, "completed": await db.advance_progress(user["id"], section)})
+        anthem_done, before = await db.member_state(user["id"])
+        if not anthem_done:
+            return _json({"enabled": True, "gate": "anthem"})
+        completed = await db.advance_progress(user["id"], section)
+        if before < content.TOTAL <= completed and on_complete is not None:
+            asyncio.create_task(_run_on_complete(user["id"]))
     except Exception:
         log.exception("advance_progress failed")
-        return _json({"enabled": False})
+        return _json({"error": "busy"}, 503)
+    sections = {}
+    if completed < content.TOTAL:   # hand over the section that has just been unlocked
+        sections[str(completed)] = {"html": content.SECTIONS[completed]["html"]}
+    return _json({"enabled": True, "completed": completed, "sections": sections})
+
+
+async def _run_on_complete(user_id: int) -> None:
+    try:
+        await on_complete(user_id)
+    except Exception:
+        log.exception("on_complete failed for %s", user_id)

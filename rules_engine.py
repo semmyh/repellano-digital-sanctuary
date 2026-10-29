@@ -47,6 +47,42 @@ TIERS: dict[str, Tier] = {
 }
 
 
+# --- FSSO1 ONE-HOUR FUNDING RULE ---
+FSSO1_FUNDING_DEADLINE_HOURS = 1     # after RNL sends the $10 loan, the member must fund the account within an hour
+FSSO1_RESTRICTION_MONTHS = 6         # otherwise: restricted from the RDS, and the $10 deposit goes to RNL
+
+FSSO1_FUNDING_WARNING = (
+    "Before you place your $10 security deposit, please note: once RNL sends you the $10 loan, "
+    "you must fund your trading account within one hour. If you do not, you will be restricted "
+    "from the RDS for 6 months and your $10 security deposit will go to RNL as repayment of the "
+    "$10 loan. You then keep the $10 loan in return for your deposit."
+)
+FSSO1_TIMEOUT_NOTICE = (
+    "You did not fund your trading account within one hour of receiving the $10 loan. As explained "
+    "before you placed your deposit, you are restricted from the RDS for the next 6 months, and your "
+    "$10 security deposit goes to RNL as repayment of the loan. Please keep the $10 loan as a return "
+    "of your security deposit."
+)
+
+
+def funding_deadline(loan_sent_at: datetime) -> datetime:
+    return loan_sent_at + timedelta(hours=FSSO1_FUNDING_DEADLINE_HOURS)
+
+
+def funding_timed_out(loan_sent_at: datetime, funded_at: datetime | None, now: datetime) -> bool:
+    """True if the member funded late, or has not funded and the hour has passed."""
+    deadline = funding_deadline(loan_sent_at)
+    return (funded_at > deadline) if funded_at is not None else (now > deadline)
+
+
+def restriction_end(start: datetime) -> datetime:
+    """Six calendar months after `start` (the day is trimmed to fit shorter months)."""
+    month_index = start.month - 1 + FSSO1_RESTRICTION_MONTHS
+    year, month = start.year + month_index // 12, month_index % 12 + 1
+    last_day = (date(year + (month // 12), month % 12 + 1, 1) - timedelta(days=1)).day
+    return start.replace(year=year, month=month, day=min(start.day, last_day))
+
+
 # --- FEES, DEPOSIT AND SCHEDULE (from FSSO_Matrix.xlsx) ---
 STARTER_LOAN_USD = 10          # FSSO1 only; given again after every LOSS until a WIN
 SECURITY_DEPOSIT_USD = 10      # FSSO1 only; paid once, held in escrow, returned on the first WIN
@@ -242,13 +278,20 @@ def new_fsso_report_text(summary: dict) -> str:
     )
 
 
-def net_balance_usd(fsso_no: int, fees_usd) -> Decimal | None:
-    """Net Balance = equity target - RNL share - member share - fees paid (the fees converted to dollars).
-    It goes to the member. [OPEN: the exchange rate used to convert the Naira fees.]"""
+def fees_in_usd(fsso_no: int, ngn_per_usd, include_renewal: bool = False) -> Decimal:
+    """The Naira fees converted to dollars at Korapay's exchange rate (Naira per $1)."""
+    info = FSSO_SCHEDULE[fsso_no]
+    naira = info.admin_fee_ngn + (info.renewal_fee_ngn or 0 if include_renewal else 0)
+    return _money(Decimal(naira) / Decimal(str(ngn_per_usd)))
+
+
+def net_balance_usd(fsso_no: int, ngn_per_usd, include_renewal: bool = False) -> Decimal | None:
+    """Net Balance = equity target - RNL share - member share - fees (converted at Korapay's rate).
+    It goes to the member. [OPEN: is the rate fixed at activation or taken at settlement?]"""
     remainder = FSSO_SCHEDULE[fsso_no].fet_remainder_usd
     if remainder is None:
         return None
-    return _money(Decimal(str(remainder)) - Decimal(str(fees_usd)))
+    return _money(Decimal(remainder) - fees_in_usd(fsso_no, ngn_per_usd, include_renewal))
 
 
 def requires_exit_acknowledgement(fsso_no: int) -> bool:
@@ -343,7 +386,15 @@ if __name__ == "__main__":
     assert FSSO_SCHEDULE[35].slave_min_usd == 4500 and FSSO_SCHEDULE[3].equity_target_usd == 1075
     assert [n for n, i in FSSO_SCHEDULE.items() if i.exits_rds] == [33, 34, 35]
     assert [n for n, i in FSSO_SCHEDULE.items() if i.lifetime_ownership] == [33, 34]
-    assert net_balance_usd(3, 33.33) == Decimal("41.67") and net_balance_usd(33, 10) is None
+    t0 = datetime(2026, 10, 29, 10, 0, tzinfo=LAGOS)
+    assert not funding_timed_out(t0, t0 + timedelta(minutes=59), t0 + timedelta(hours=5))
+    assert funding_timed_out(t0, t0 + timedelta(minutes=61), t0 + timedelta(hours=5))
+    assert funding_timed_out(t0, None, t0 + timedelta(minutes=61)) and not funding_timed_out(t0, None, t0 + timedelta(minutes=30))
+    assert restriction_end(datetime(2026, 10, 29, tzinfo=LAGOS)).date() == date(2027, 4, 29)
+    assert restriction_end(datetime(2026, 8, 31, tzinfo=LAGOS)).date() == date(2027, 2, 28)
+    assert restriction_end(datetime(2026, 12, 15, tzinfo=LAGOS)).date() == date(2027, 6, 15)
+    assert fees_in_usd(3, 1500) == Decimal("33.33") and net_balance_usd(3, 1500) == Decimal("41.67")
+    assert net_balance_usd(33, 1500) is None
     assert requires_exit_acknowledgement(33) and requires_exit_acknowledgement(35) and not requires_exit_acknowledgement(32)
     assert 2 in eligible_fssos(150) and 11 not in eligible_fssos(150) and 11 in eligible_fssos(900)
     assert check_funding_for_fsso(11, 100, 400)[0] is True and check_funding_for_fsso(11, 100, 150)[0] is False

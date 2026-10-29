@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 
 log = logging.getLogger("repellano.overrides")
 
-REGISTER_VERSION = "1.0 (28 Oct 2026)"
+REGISTER_VERSION = "1.1 (29 Oct 2026)"
 SAFE, CONDITIONAL, LOCKED = "SAFE", "CONDITIONAL", "LOCKED"
 MIN_REASON_CHARS = 15
 GMD_IDS = {int(x) for x in os.getenv("GMD_IDS", "").replace(" ", "").split(",") if x.lstrip("-").isdigit()}
@@ -95,6 +95,10 @@ REGISTER: list[Rule] = [
          "Let a member past the FSSO1 to FSSO2 gate.",
          "A starting balance funded by RNL must be named, because no gifted loan exists yet; lifetime win counters are not edited; the skipped FSSO is recorded as waived.",
          "FSSO gating, starter loan, capital ceiling", second_approval=True),
+    Rule("fsso1_funding_timeout", "FSSO1 one-hour funding rule", "user", CONDITIONAL,
+         "Lift the 6-month restriction or return a forfeited deposit.",
+         "The restriction end date is updated; any refund goes through the escrow provider only; the $10 loan is recorded as repaid or waived so RNL's records balance; the member is notified.",
+         "FSSO1 loan loop, deposit escrow, absconding protection", second_approval=True),
     Rule("deposit_early_refund", "Refund the $10 deposit early", "user", CONDITIONAL,
          "Ask the escrow provider to release a deposit early.",
          "Only through the escrow provider, never by RNL; not available while a $10 trading fund is outstanding.",

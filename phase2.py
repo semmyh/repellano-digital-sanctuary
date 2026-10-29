@@ -1,7 +1,8 @@
 """
-Phase 2: Brief Introduction to Repellano Nigeria Limited (RNL).
+Phase 3: General Rules and Limitations.
 
-A paged card walkthrough shown on the clean slate after the Anthem sweep.
+A paged card walkthrough shown in the chat right after the member finishes the six sections of
+the Corporate Portal (file kept as phase2.py so existing imports keep working).
 - One message per member; Back / Next EDIT that message (user-driven, no timers).
 - Page content lives in PAGES, so wording can change without touching the logic.
 - Each member has a private session; nothing is shared between users.
@@ -31,28 +32,15 @@ def init(sessions: dict) -> None:
 
 
 # --- CONTENT (HTML parse mode) ---
-TITLE = "🏛 <b>Phase 2: Brief Introduction to Repellano Nigeria Limited (RNL)</b>"
-
-# TODO: replace with the real RNL company introduction once supplied.
-RNL_INTRO_PLACEHOLDER = "<i>[RNL company introduction goes here.]</i>"
+TITLE = "📜 <b>Phase 3: General Rules and Limitations</b>"
 
 PAGES: list[str] = [
-    # 1. Welcome
+    # 1. Introduction
     f"{TITLE}\n\n"
-    f"{RNL_INTRO_PLACEHOLDER}\n\n"
-    "The <b>Repellano Digital Sanctuary (RDS)</b> is a real-time business engine. It connects "
-    "every part of the platform, so a change in one place updates everything automatically. "
-    "The heavy maths happens in the background, and you only see a simple screen that "
-    "always shows the truth.\n\n"
-    "The RDS offers <b>35 Financial Support Service Offerings (FSSOs)</b>.",
-
-    # 2. How the Sanctuary works for you
-    "🧭 <b>How the Sanctuary looks after you</b>\n\n"
-    "• <b>Always accurate.</b> Records are kept perfectly, so your totals are right to the day.\n"
-    "• <b>Easy to use.</b> You only see the buttons and information that belong to you.\n"
-    "• <b>Home base.</b> The Table of Contents is always one click away.\n"
-    "• <b>A safety net.</b> If your phone dies or you close Telegram halfway through a task, "
-    "your draft is saved and you can pick up where you left off.",
+    "Before you begin, please read the rules that apply across the whole <b>Repellano Digital "
+    "Sanctuary (RDS)</b>. The RDS offers <b>35 Financial Support Service Offerings (FSSOs)</b>, "
+    "and these rules apply to all of them.\n\n"
+    "Tap <b>Next</b> to continue.",
 
     # 3. Who can join
     "🪪 <b>Who can join</b>\n\n"
@@ -71,7 +59,11 @@ PAGES: list[str] = [
     "2️⃣ <b>FSSO2:</b> opens after FSSO1.\n\n"
     "FSSO1 and FSSO2 are compulsory, run one after the other (never together), and each can "
     "be taken only once in a lifetime. Complete FSSO2 to unlock the rest.\n\n"
-    "A free FSSO1 account is deleted after 30 days if the $10 security deposit is not paid.",
+    "A free FSSO1 account is deleted after 30 days if the $10 security deposit is not paid.\n\n"
+    "⏱ <b>One-hour rule:</b> after RNL sends you the $10 loan, you must fund your trading account "
+    "within <b>one hour</b>. If you do not, you are restricted from the RDS for <b>6 months</b> and "
+    "your $10 security deposit goes to RNL as repayment of the $10 loan. You keep the $10 loan in "
+    "return for the deposit.",
 
     # 5. Money rules  (REVIEW: legal)
     "💼 <b>How the money rules work</b>\n\n"
@@ -162,7 +154,7 @@ async def _edit(cb: CallbackQuery, text: str, markup: InlineKeyboardMarkup | Non
         except TelegramRetryAfter as e:
             await asyncio.sleep(e.retry_after)
         except TelegramBadRequest as e:
-            log.info("Phase 2 edit skipped: %s", e)
+            log.info("Phase 3 edit skipped: %s", e)
             return False
     return False
 
@@ -211,11 +203,12 @@ async def on_ack(cb: CallbackQuery) -> None:
     session["phase"] = "acknowledging"  # blocks double taps
     await cb.answer()
     session["p2_ack_at"] = time.time()  # log the acknowledgement timestamp for the backend
-    log.info("User %s acknowledged Phase 2 at %s", cb.from_user.id, session["p2_ack_at"])
+    log.info("User %s acknowledged Phase 3 at %s", cb.from_user.id, session["p2_ack_at"])
 
     await _edit(
         cb,
-        "✅ <b>Phase 2 complete.</b>\nThank you for reading the Sanctuary's general rules.",
+        "✅ <b>Phase 3 complete.</b>\nThank you for reading the Sanctuary's general rules.\n\n"
+        "Your next step, getting started with FSSO1, is coming soon.",
         None,
     )
     session["phase"] = "done"
