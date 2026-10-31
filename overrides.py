@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 
 log = logging.getLogger("repellano.overrides")
 
-REGISTER_VERSION = "1.1 (29 Oct 2026)"
+REGISTER_VERSION = "1.3 (30 Oct 2026)"
 SAFE, CONDITIONAL, LOCKED = "SAFE", "CONDITIONAL", "LOCKED"
 MIN_REASON_CHARS = 15
 GMD_IDS = {int(x) for x in os.getenv("GMD_IDS", "").replace(" ", "").split(",") if x.lstrip("-").isdigit()}
@@ -41,6 +41,7 @@ class Rule:
     depends_on: str            # the rules it is tied to
     second_approval: bool = False   # recommended: a named second approver
     needs_expiry: bool = False      # the override must be time-boxed
+    line_override: bool = False     # the member's own CEO (first approval) and ED (final approval) may also grant it
 
 
 REGISTER: list[Rule] = [
@@ -96,9 +97,13 @@ REGISTER: list[Rule] = [
          "A starting balance funded by RNL must be named, because no gifted loan exists yet; lifetime win counters are not edited; the skipped FSSO is recorded as waived.",
          "FSSO gating, starter loan, capital ceiling", second_approval=True),
     Rule("fsso1_funding_timeout", "FSSO1 one-hour funding rule", "user", CONDITIONAL,
-         "Lift the 6-month restriction or return a forfeited deposit.",
-         "The restriction end date is updated; any refund goes through the escrow provider only; the $10 loan is recorded as repaid or waived so RNL's records balance; the member is notified.",
-         "FSSO1 loan loop, deposit escrow, absconding protection", second_approval=True),
+         "Waive the restriction for good reason (glitch, network downtime or another reasonable explanation from the customer).",
+         "The 6-month restriction is lifted and the $10 deposit is not forfeited; the $10 loan is recorded as repaid or waived so RNL's records balance; the member is notified and may start again immediately.",
+         "FSSO1 loan loop, deposit escrow, absconding protection", second_approval=True, line_override=True),
+    Rule("remittance_timeout", "One-hour profit-share remittance rule", "user", CONDITIONAL,
+         "Waive the lifetime ban for a late remittance for good reason (glitch, network downtime or another reasonable explanation).",
+         "The ban is held; the member gets one more hour to pay the outstanding amount, failing which the ban becomes permanent; the waiver and both approvals are recorded; the member is notified.",
+         "Profit-share remittance, bans, member's line (CEO then ED)", second_approval=True, line_override=True),
     Rule("deposit_early_refund", "Refund the $10 deposit early", "user", CONDITIONAL,
          "Ask the escrow provider to release a deposit early.",
          "Only through the escrow provider, never by RNL; not available while a $10 trading fund is outstanding.",
@@ -141,6 +146,8 @@ REGISTER: list[Rule] = [
          "Cannot be extended.", "Its purpose is to prevent abuse and promote responsibility.", "Duration, renewal"),
     Rule("lifetime_once", "Lifetime FSSOs are activated only once", "system", LOCKED,
          "No second activation.", "Part of the product definition and the FET maths.", "Lifetime FSSOs, renewal"),
+    Rule("trading_balance_gate", "Trading starts only when the Master balance is equal to or lower than the linked account's balance", "system", LOCKED,
+         "Cannot be bypassed.", "Protects the trade-copying structure between Master and linked accounts.", "Master/Slave structure, daily sweep, funded minimums"),
     Rule("override_audit", "The audit trail and this register", "system", LOCKED,
          "Cannot be switched off, edited or deleted.", "Every other safeguard relies on it.", "All overrides"),
 ]
@@ -179,6 +186,47 @@ def check_request(rule_key: str, reason: str, granted_by: int, approved_by: int 
         if expires_at is None or expires_at <= datetime.now(timezone.utc):
             return False, "This override must have a future expiry date."
     return True, "OK"
+
+
+LINE_REASONS = ("glitch", "network_downtime", "other_reasonable")
+
+
+def check_line_override(rule_key: str, reason_category: str, reason: str, first_approver: int,
+                        final_approver: int, member_ceo_id: int | None, member_ed_id: int | None,
+                        member_id: int | None = None) -> tuple[bool, str]:
+    """The member's own line may waive certain rules: the linked CEO gives first approval and the
+    linked ED gives the final approval. Pure function, easy to test."""
+    rule = get_rule(rule_key)
+    if rule is None or not rule.line_override:
+        return False, "This rule cannot be overridden by the member's line."
+    if reason_category not in LINE_REASONS:
+        return False, "Choose a reason: glitch, network downtime, or another reasonable explanation."
+    if len((reason or "").strip()) < MIN_REASON_CHARS:
+        return False, f"A reason of at least {MIN_REASON_CHARS} characters is required."
+    if member_ceo_id is None or member_ed_id is None:
+        return False, "The member has no linked CEO and ED on record."
+    if first_approver != member_ceo_id:
+        return False, "First approval must come from the member's linked CEO."
+    if final_approver != member_ed_id:
+        return False, "Final approval must come from the member's linked ED."
+    if member_id is not None and member_id in (first_approver, final_approver):
+        return False, "Nobody can approve an override about themselves."
+    return True, "OK"
+
+
+async def grant_line_override(rule_key: str, member_id: int, reason_category: str, reason: str,
+                              first_approver: int, final_approver: int,
+                              member_ceo_id: int | None, member_ed_id: int | None) -> tuple[bool, str, int | None]:
+    """Record a line override. The CEO's first approval and the ED's final approval are both saved."""
+    import db
+    ok, message = check_line_override(rule_key, reason_category, reason, first_approver, final_approver,
+                                      member_ceo_id, member_ed_id, member_id)
+    if not ok:
+        return False, message, None
+    new_id = await db.record_override(rule_key, "user", member_id, reason_category, reason.strip(),
+                                      first_approver, final_approver, None)
+    log.info("Line override %s on member %s: CEO %s then ED %s", rule_key, member_id, first_approver, final_approver)
+    return True, "Override recorded. The member may start again immediately.", new_id
 
 
 async def grant(rule_key: str, target_type: str, target_id: int, reason: str, granted_by: int,
