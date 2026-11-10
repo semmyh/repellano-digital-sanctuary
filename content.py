@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 The six sections of the Brief Introduction to RNL.
 
@@ -11,7 +12,7 @@ SECTIONS = [
         "slug": 'who',
         "title": 'Who we are',
         "html": (
-            '<p class="lead">Repellano Nigeria Limited (RNL) is an uncommon provider of financial support services, built on a “zero-risk” philosophy.</p>'
+            '<p class="lead">Repellano Nigeria Limited (RNL) is an uncommon provider of financial support services, built on a “zero-risk-to-your-own-money” philosophy.</p>'
             '<p>We never charge you fees upfront and never trade with your money. We trade with our own capital: any profit we generate is ours, and a share of it is gifted to you as a cash loan.</p>'
             '<div class="note"><p>To secure your $10 starter loan, you place a refundable $10 security deposit in escrow with a third-party processor. RNL never collects it.</p>'
             '</div>'
@@ -61,6 +62,7 @@ SECTIONS = [
             '<p>You get this solid foundation only once in your lifetime.</p>'
             '<div class="note"><p>Your $10 security deposit comes back to you on your first WIN, or if you walk away after a LOSS.</p>'
             '</div>'
+            '<div class="note"><p>After we send your $10 loan, you must fund your trading account within one hour. If you do not, you are restricted from the RDS for 6 months and your $10 deposit goes to RNL as repayment of the loan.</p></div>'
         ),
     },
     {
