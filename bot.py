@@ -29,11 +29,9 @@ CHANNEL_ID = os.getenv("CHANNEL_ID", "@RDSTracks")
 # Telegram IDs allowed to use /resetme for testing (comma separated, set on Render as ADMIN_IDS)
 ADMIN_IDS = {int(x) for x in os.getenv("ADMIN_IDS", "").replace(" ", "").split(",") if x.lstrip("-").isdigit()}
 
-# --- DEVELOPMENT TESTING OVERRIDE ---
-# Durations have been set to 3 seconds so you can instantly verify your Immaculate Clean Sweep.
 CONFIGS = {
-    "en": {"msg_id": 6, "duration": 3, "title": "English"},    
-    "pidgin": {"msg_id": 15, "duration": 3, "title": "Pidgin"},  
+    "en": {"msg_id": 6, "duration": 250, "title": "English"},    # 240s song + 10s
+    "pidgin": {"msg_id": 15, "duration": 244, "title": "Pidgin"},  # 234s song + 10s
 }
 
 # --- TEXT BLOCKS (MarkdownV2 unless stated) ---
@@ -65,6 +63,7 @@ PIDGIN_LYRICS = (
     "<b>[Outro]</b>\nThe Digital Sanctuary.\nWe don build, we don automate, we wan rise.\n[Fade Out][End]"
 )
 
+# The two instruction lines now live on the buttons, so the message body stays short.
 INSTRUCTIONS = (
     r"💡 *Optional Tip:* If you wish to replay the Anthem anytime, tap the ➦ arrow beside the track "
     r"playback button on top of the lyrics, then choose *Saved Messages*\." "\n\n"
@@ -73,6 +72,8 @@ INSTRUCTIONS = (
 
 PHASE2_TEXT = r"🏛 *Phase 2: Brief Introduction to Repellano Nigeria Limited \(RNL\)*"
 
+# --- STATE ---
+# phase: greeting -> loading -> listening -> complete -> confirming -> done
 USER_SESSIONS: dict[int, dict] = {}
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2))
@@ -167,7 +168,7 @@ async def wipe_chat(user_id: int, session: dict) -> None:
 
 
 # --- TOTAL CLEAN SWEEP ---
-SWEEP_LOOKBACK = 500  
+SWEEP_LOOKBACK = 500  # how many ids below this run's first message to check for leftovers
 
 
 async def sweep_range(chat_id: int, low: int, high: int) -> None:
@@ -199,6 +200,7 @@ async def total_sweep(user_id: int, session: dict) -> None:
     tracked = [i for i in session["to_wipe"] if i]
     session["to_wipe"] = []
 
+    # A tiny marker message tells us the newest message id in this chat right now.
     high = max(tracked or)
     marker_id = None
     try:
@@ -207,8 +209,4 @@ async def total_sweep(user_id: int, session: dict) -> None:
         high = max(high, marker_id)
     except Exception as e:
         log.warning("Sweep marker failed for %s: %s", user_id, e)
-
-    run_low = min(tracked) if tracked else max(1, high - 50)
-    await sweep_range(user_id, run_low - SWEEP_LOOKBACK, high)
-    await delete_messages_safe(user_id, tracked + ([marker_id] if marker_id else []))
 
